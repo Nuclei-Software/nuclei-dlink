@@ -27,6 +27,8 @@
 #include <rv-link/link/arch/gd32vf103/longan-nano-alt/link-config.h>
 #elif defined(RVL_LINK_RVL_PROBE)
 #include <rv-link/link/arch/gd32vf103/rvl-probe/link-config.h>
+#elif defined(RVL_LINK_RVSTAR)
+#include <rv-link/link/arch/gd32vf103/rvstar/link-config.h>
 #else
 #error No RVL_LINK_X defined
 #endif

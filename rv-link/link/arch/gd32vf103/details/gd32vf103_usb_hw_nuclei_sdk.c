@@ -57,7 +57,7 @@ OF SUCH DAMAGE.
 
 static __IO uint32_t usbfs_prescaler = 0;
 static __IO uint32_t delay_time = 0;
-static __IO uint32_t timer_prescaler = 5;
+static __IO uint32_t timer_prescaler = 0;
 
 extern usb_core_driver USB_OTG_dev;
 

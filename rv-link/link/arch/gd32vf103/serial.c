@@ -105,6 +105,18 @@
     #define UART_CLK                       RCU_USART2
     #define UART_IRQ                       USART2_IRQn
     #define UART_IRQ_ISR                   USART2_IRQHandler
+#elif defined(RVL_SERIAL_USING_UART4_FULL_REMAP)
+    /* Remap available only for 100-pin */
+    #define UART_ITF                       UART4
+    #define UART_TX_PIN                    GPIO_PIN_12
+    #define UART_RX_PIN                    GPIO_PIN_2
+    #define UART_TX_GPIO_PORT              GPIOC
+    #define UART_TX_GPIO_CLK               RCU_GPIOC
+    #define UART_RX_GPIO_PORT              GPIOD
+    #define UART_RX_GPIO_CLK               RCU_GPIOD
+    #define UART_CLK                       RCU_UART4
+    #define UART_IRQ                       UART4_IRQn
+    #define UART_IRQ_ISR                   UART4_IRQHandler
 #else
 #error No RVL_SERIAL_USING_USARTx defined
 #endif
@@ -129,6 +141,7 @@ static rvl_serial_s rvl_serial_i;
 void USART0_IRQHandler(void);
 void USART1_IRQHandler(void);
 void USART2_IRQHandler(void);
+void UART4_IRQHandler(void);
 
 static void rvl_serial_recv_buf_put(uint8_t c);
 
@@ -140,8 +153,6 @@ void rvl_serial_init(void)
     self.recv_buf.tail = 0;
     self.recv_buf.head = 0;
 
-    /* enable GPIO clock */
-    rcu_periph_clock_enable(UART_GPIO_CLK);
 
     /* enable USART clock */
     rcu_periph_clock_enable(UART_CLK);
@@ -153,12 +164,21 @@ void rvl_serial_init(void)
     gpio_pin_remap_config(UART_GPIO_REMAP, ENABLE);
 #endif
 
+#ifdef RVL_SERIAL_USING_UART4_FULL_REMAP
+    rcu_periph_clock_enable(UART_TX_GPIO_CLK);
+    rcu_periph_clock_enable(UART_RX_GPIO_CLK);
+    gpio_init(UART_TX_GPIO_PORT, GPIO_MODE_AF_PP, GPIO_OSPEED_10MHZ, UART_TX_PIN);
+    gpio_init(UART_RX_GPIO_PORT, GPIO_MODE_IPU, GPIO_OSPEED_10MHZ, UART_RX_PIN);
+#else
+    /* enable GPIO clock */
+    rcu_periph_clock_enable(UART_GPIO_CLK);
     /* connect port to USARTx_Tx */
     gpio_init(UART_GPIO_PORT, GPIO_MODE_AF_PP, GPIO_OSPEED_10MHZ, UART_TX_PIN);
 
     /* connect port to USARTx_Rx */
 //    gpio_init(UART_GPIO_PORT, GPIO_MODE_IN_FLOATING, GPIO_OSPEED_10MHZ, UART_RX_PIN);
     gpio_init(UART_GPIO_PORT, GPIO_MODE_IPU, GPIO_OSPEED_10MHZ, UART_RX_PIN);
+#endif
 
     /* USART configure */
     usart_deinit(UART_ITF);
@@ -238,6 +258,8 @@ void USART1_IRQHandler(void)
       defined(RVL_SERIAL_USING_UART2_PARTIAL_REMAP) || \
       defined(RVL_SERIAL_USING_UART2_FULL_REMAP)
 void USART2_IRQHandler(void)
+#elif defined(RVL_SERIAL_USING_UART4_FULL_REMAP)
+void UART4_IRQHandler(void)
 #else
 #errro No RVL_SERIAL_USING_USARTx defined
 #endif

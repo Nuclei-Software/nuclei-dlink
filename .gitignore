@@ -9,3 +9,7 @@ output/
 .vscode
 *.code-workspace
 .gdbinit
+*.o
+*.d
+*.map
+*.elf

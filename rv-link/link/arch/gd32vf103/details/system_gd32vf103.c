@@ -24,7 +24,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#ifndef USING_NUCLEI_SDK
 /* system library header file includes */
 #include <stdint.h>
 #include <stdio.h>
@@ -668,3 +668,4 @@ void _fini(void)
 }
 
 /** @} */ /* End of Doxygen Group NMSIS_Core_SystemAndClock */
+#endif

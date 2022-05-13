@@ -93,7 +93,7 @@ void usb_intr_config(void)
 #ifdef GD32VF103_SDK
     eclic_irq_enable((uint8_t)USBFS_IRQn, 1, 0);
 #else
-    (void) ECLIC_Register_IRQ(USBFS_IRQn, ECLIC_VECTOR_INTERRUPT, ECLIC_LEVEL_TRIGGER, 1, 0, USBFS_IRQHandler);
+    (void) ECLIC_Register_IRQ(USBFS_IRQn, ECLIC_NON_VECTOR_INTERRUPT, ECLIC_LEVEL_TRIGGER, 1, 0, USBFS_IRQHandler);
 #endif /* GD32VF103_SDK */
 
     /* enable the power module clock */
@@ -107,7 +107,7 @@ void usb_intr_config(void)
 #ifdef GD32VF103_SDK
     eclic_irq_enable((uint8_t)USBFS_WKUP_IRQn, 3, 0);
 #else
-    (void) ECLIC_Register_IRQ(USBFS_WKUP_IRQn, ECLIC_VECTOR_INTERRUPT, ECLIC_LEVEL_TRIGGER, 1, 0, USBFS_WKUP_IRQHandler);
+    (void) ECLIC_Register_IRQ(USBFS_WKUP_IRQn, ECLIC_NON_VECTOR_INTERRUPT, ECLIC_LEVEL_TRIGGER, 1, 0, USBFS_WKUP_IRQHandler);
 #endif /* GD32VF103_SDK */
 }
 
@@ -121,8 +121,11 @@ void usb_timer_init(void)
 {
     rcu_periph_clock_enable(RCU_TIMER2);
 
+#ifdef GD32VF103_SDK
     eclic_irq_enable(TIMER2_IRQn, 2, 0);
-    //(void) ECLIC_Register_IRQ(TIMER2_IRQn, ECLIC_VECTOR_INTERRUPT, ECLIC_LEVEL_TRIGGER, 2, 0, TIMER2_IRQHandler);
+#else
+    (void) ECLIC_Register_IRQ(TIMER2_IRQn, ECLIC_NON_VECTOR_INTERRUPT, ECLIC_LEVEL_TRIGGER, 2, 0, TIMER2_IRQHandler);
+#endif /* GD32VF103_SDK */
 }
 
 /*!
