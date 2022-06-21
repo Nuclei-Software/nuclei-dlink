@@ -25,6 +25,17 @@ RISC-V MCU that RV-Link can debug:
 - GD32VF103 series.
 
 ## Using RV-Link
+
+### Using with Nuclei SDK
+
+1. Clone Nuclei SDK source code
+2. `export NUCLEI_SDK_ROOT=/path/to/nuclei-sdk`
+3. Build just like a nuclei sdk application
+
+This application can run on rv-star, but not functional, please check!!!
+
+### Other notes
+
 The RV-Link firmware provides the following features when connected to a RISC-V target:
 - **a JTAG interface with gbd-server as USB device**
   e.g. on a Linux host connect to a target board with the following commands:
