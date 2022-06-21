@@ -19,12 +19,10 @@ SRCDIRS = lib/pt rv-link rv-link/link rv-link/target rv-link/details \
 
 INCDIRS = . lib rv-link rv-link/link/arch/gd32vf103/details
 
-EXCLUDE_SRCS = rv-link/link/arch/gd32vf103/details/gd32vf103_usb_hw_gd32vf103_sdk.c \
-				 rv-link/link/arch/gd32vf103/details/system_gd32vf103.c \
-
-				 #$(NUCLEI_SDK_ROOT)//SoC/gd32vf103/Common/Source/Drivers/Usb/gd32vf103_usb_hw.c
-
-				 #rv-link/link/arch/gd32vf103/details/gd32vf103_usb_hw_nuclei_sdk.c 
+EXCLUDE_SRCS = rv-link/link/arch/gd32vf103/details/system_gd32vf103.c \
+				rv-link/link/arch/gd32vf103/details/gd32vf103_usb_hw_nuclei_sdk.c
+				#rv-link/link/arch/gd32vf103/details/gd32vf103_usb_hw_gd32vf103_sdk.c \
+				#$(NUCLEI_SDK_ROOT)//SoC/gd32vf103/Common/Source/Drivers/Usb/gd32vf103_usb_hw.c \
 
 SOC := gd32vf103
 SYSCLK := 96000000
