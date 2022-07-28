@@ -106,6 +106,13 @@ typedef struct {
     rvl_target_addr_t blocksize;
 } rvl_target_memory_t;
 
+void riscv_target_init(void);
+PT_THREAD(riscv_target_init_post(rvl_target_error_t *err));
+PT_THREAD(riscv_target_init_after_halted(rvl_target_error_t *err));
+PT_THREAD(riscv_target_fini_pre(void));
+void riscv_target_fini(void);
+uint32_t riscv_target_get_idcode(void);
+
 void rvl_target_init(void);
 PT_THREAD(rvl_target_init_post(rvl_target_error_t* err));
 PT_THREAD(rvl_target_init_after_halted(rvl_target_error_t* err));

@@ -1012,12 +1012,12 @@ PT_THREAD(gdb_server_connected(void))
     self.gdb_connected = true;
     gdb_server_target_run(false);
 
-    rvl_target_init();
-    PT_WAIT_THREAD(&self.pt_sub_routine, rvl_target_init_post(&self.target_error));
+    riscv_target_init();
+    PT_WAIT_THREAD(&self.pt_sub_routine, riscv_target_init_post(&self.target_error));
 
     if (self.target_error == rvl_target_error_none) {
         PT_WAIT_THREAD(&self.pt_sub_routine, rvl_target_halt());
-        PT_WAIT_THREAD(&self.pt_sub_routine, rvl_target_init_after_halted(&self.target_error));
+        PT_WAIT_THREAD(&self.pt_sub_routine, riscv_target_init_after_halted(&self.target_error));
     }
 
     if (self.target_error != rvl_target_error_none) {
@@ -1062,9 +1062,9 @@ PT_THREAD(gdb_server_disconnected(void))
     }
 
     if (self.target_error != rvl_target_error_line) {
-        PT_WAIT_THREAD(&self.pt_sub_routine, rvl_target_fini_pre());
+        PT_WAIT_THREAD(&self.pt_sub_routine, riscv_target_fini_pre());
     }
-    rvl_target_fini();
+    riscv_target_fini();
 
     self.gdb_connected = false;
     rvl_led_gdb_connect(0);

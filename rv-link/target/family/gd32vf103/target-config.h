@@ -32,6 +32,7 @@ See the Mulan PSL v1 for more details.
  */
 //#define RVL_TARGET_CONFIG_HAS_AAR_POST_INC
 
+#define RVL_TARGET_CONFIG_TAP_DYN
 
 #ifndef RVL_TARGET_CONFIG_TAP_DYN
 #define RVL_TARGET_CONFIG_TAP_IR_POST         5

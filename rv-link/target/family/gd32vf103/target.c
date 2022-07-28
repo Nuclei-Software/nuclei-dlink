@@ -121,13 +121,6 @@ PT_THREAD(rvl_target_init_post(rvl_target_error_t *err))
 
     PT_WAIT_THREAD(&self.pt, riscv_target_init_post(err));
 
-    if (*err == rvl_target_error_none) {
-        if (riscv_target_get_idcode() != 0x1000563d) {
-            *err = rvl_target_error_compat;
-            PT_EXIT(&self.pt);
-        }
-    }
-
     PT_END(&self.pt);
 }
 
