@@ -44,8 +44,8 @@
  * @{
  */
 
-#include "pt/clock.h"
-#include "pt/timer.h"
+#include "clock.h"
+#include "timer.h"
 
 /*---------------------------------------------------------------------------*/
 /**

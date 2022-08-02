@@ -73,7 +73,7 @@
 #ifndef TIMER_H_
 #define TIMER_H_
 
-#include "pt/clock.h"
+#include "clock.h"
 
 /**
  * A timer.
