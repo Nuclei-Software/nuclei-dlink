@@ -30,7 +30,6 @@
 #include "dmi.h"
 #include "dtm.h"
 #include "encoding.h"
-#include "timer.h"
 
 #ifndef RVL_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM
 #define RVL_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM       4
@@ -115,7 +114,6 @@ typedef struct riscv_software_breakpoint_s
 
 typedef struct riscv_target_s
 {
-    struct timer timer;
     riscv_dm_t dm;
     uint32_t dmi_result;
     uint32_t i;
@@ -539,8 +537,7 @@ void rvl_target_reset(void)
 
     rvl_jtag_srst_put(0);
 
-    timer_set(&self.timer, 100 * 1000);
-    while (!timer_expired(&self.timer));
+    delay_1ms(100);
 
     rvl_jtag_srst_put(1);
 
@@ -551,8 +548,7 @@ void rvl_target_reset(void)
     rvl_dmi_write(RISCV_DM_CONTROL, (rvl_dmi_reg_t)(self.dm.dmcontrol.reg), &self.dmi_result);
 
     for(self.i = 0; self.i < 100; self.i++) {
-        timer_set(&self.timer, 10 * 1000);
-        while (!timer_expired(&self.timer));
+        delay_1ms(10);
 
         rvl_dmi_read(RISCV_DM_STATUS, (rvl_dmi_reg_t*)(&self.dm.dmstatus.reg), &self.dmi_result);
         if (self.dm.dmstatus.allhalted) {
