@@ -21,7 +21,6 @@
 /* system library header file includes */
 #include <stddef.h>
 #include <stdint.h>
-#include "pt.h"
 
 /* other library header file includes */
 #include "target-config.h"
@@ -107,46 +106,41 @@ typedef struct {
 } rvl_target_memory_t;
 
 void riscv_target_init(void);
-PT_THREAD(riscv_target_init_post(rvl_target_error_t *err));
-PT_THREAD(riscv_target_init_after_halted(rvl_target_error_t *err));
-PT_THREAD(riscv_target_fini_pre(void));
+void riscv_target_init_post(rvl_target_error_t *err);
+void riscv_target_init_after_halted(rvl_target_error_t *err);
+void riscv_target_fini_pre(void);
 void riscv_target_fini(void);
 uint32_t riscv_target_get_idcode(void);
 
-void rvl_target_init(void);
-PT_THREAD(rvl_target_init_post(rvl_target_error_t* err));
-PT_THREAD(rvl_target_init_after_halted(rvl_target_error_t* err));
-PT_THREAD(rvl_target_fini_pre(void));
-void rvl_target_fini(void);
 void rvl_target_set_error(const char* str);
 void rvl_target_get_error(const char** str, uint32_t* pc);
 void rvl_target_clr_error(void);
 
-PT_THREAD(rvl_target_reset(void));
-PT_THREAD(rvl_target_halt(void));
-PT_THREAD(rvl_target_halt_check(rvl_target_halt_info_t* halt_info));
-PT_THREAD(rvl_target_resume(void));
-PT_THREAD(rvl_target_step(void));
+void rvl_target_reset(void);
+void rvl_target_halt(void);
+void rvl_target_halt_check(rvl_target_halt_info_t* halt_info);
+void rvl_target_resume(void);
+void rvl_target_step(void);
 
-PT_THREAD(rvl_target_read_core_registers(rvl_target_reg_t* regs));
-PT_THREAD(rvl_target_write_core_registers(const rvl_target_reg_t* regs));
+void rvl_target_read_core_registers(rvl_target_reg_t* regs);
+void rvl_target_write_core_registers(const rvl_target_reg_t* regs);
 
-PT_THREAD(rvl_target_read_register(rvl_target_reg_t* reg, int regno));
-PT_THREAD(rvl_target_write_register(rvl_target_reg_t reg, int regno));
+void rvl_target_read_register(rvl_target_reg_t* reg, int regno);
+void rvl_target_write_register(rvl_target_reg_t reg, int regno);
 
-PT_THREAD(rvl_target_read_memory(uint8_t* mem, rvl_target_addr_t addr, size_t len));
-PT_THREAD(rvl_target_write_memory(const uint8_t* mem, rvl_target_addr_t addr, size_t len));
+void rvl_target_read_memory(uint8_t* mem, rvl_target_addr_t addr, size_t len);
+void rvl_target_write_memory(const uint8_t* mem, rvl_target_addr_t addr, size_t len);
 
-PT_THREAD(rvl_target_insert_breakpoint(rvl_target_breakpoint_type_t type, rvl_target_addr_t addr, int kind, int* err));
-PT_THREAD(rvl_target_remove_breakpoint(rvl_target_breakpoint_type_t type,rvl_target_addr_t addr, int kind, int* err));
+void rvl_target_insert_breakpoint(rvl_target_breakpoint_type_t type, rvl_target_addr_t addr, int kind, int* err);
+void rvl_target_remove_breakpoint(rvl_target_breakpoint_type_t type,rvl_target_addr_t addr, int kind, int* err);
 
 const char* rvl_target_get_target_xml(void);
 size_t rvl_target_get_target_xml_len(void);
 
 const char *rvl_target_get_name(void);
 
-PT_THREAD(rvl_target_flash_erase(rvl_target_addr_t addr, size_t len, int* err));
-PT_THREAD(rvl_target_flash_write(rvl_target_addr_t addr, size_t len, uint8_t* buffer, int* err));
-PT_THREAD(rvl_target_flash_done(void));
+void rvl_target_flash_erase(rvl_target_addr_t addr, size_t len, int* err);
+void rvl_target_flash_write(rvl_target_addr_t addr, size_t len, uint8_t* buffer, int* err);
+void rvl_target_flash_done(void);
 
 #endif /* __RV_LINK_TARGET_TARGET_H__ */

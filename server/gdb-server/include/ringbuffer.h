@@ -20,12 +20,10 @@
 
 /* system library header file includes */
 #include <stddef.h>
-#include "pt.h"
 
 /* other library header file includes */
 
 void gdb_ringbuffer_init(void);
-PT_THREAD(gdb_ringbuffer_poll(void));
 size_t gdb_resp_buf_putchar(char c);
 size_t gdb_resp_buf_puts(const char* s);
 size_t gdb_resp_buf_getchar(char* c);

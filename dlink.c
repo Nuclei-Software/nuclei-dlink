@@ -20,7 +20,6 @@
 #include "gdb-server.h"
 #include "debug.h"
 #include "port.h"
-#include "pt.h"
 
 int main(void)
 {
@@ -28,7 +27,7 @@ int main(void)
     rvl_transport_init();
 
     for(;;) {
-        (void) PT_SCHEDULE(gdb_server_poll());
-        (void) PT_SCHEDULE(rvl_transport_poll());
+        gdb_server_poll();
+        rvl_transport_poll();
     }
 }

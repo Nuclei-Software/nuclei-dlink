@@ -45,7 +45,10 @@ static uint8_t rvl_tap_dr_post;
 #endif
 
 #ifndef RVL_TARGET_CONFIG_TAP_IR_POST
-#define RVL_TARGET_CONFIG_TAP_IR_POST         0
+//RV-STAR
+#define RVL_TARGET_CONFIG_TAP_IR_POST         5
+//Other
+//#define RVL_TARGET_CONFIG_TAP_IR_POST         0
 #endif
 
 #ifndef RVL_TARGET_CONFIG_TAP_DR_PRE
@@ -53,7 +56,10 @@ static uint8_t rvl_tap_dr_post;
 #endif
 
 #ifndef RVL_TARGET_CONFIG_TAP_DR_POST
-#define RVL_TARGET_CONFIG_TAP_DR_POST         0
+//RV-STAR
+#define RVL_TARGET_CONFIG_TAP_DR_POST         1
+//Other
+//#define RVL_TARGET_CONFIG_TAP_DR_POST         0
 #endif
 
 #endif /* RVL_TARGET_CONFIG_TAP_DYN */

@@ -20,9 +20,8 @@
 
 /* other library header file includes */
 #include <stdint.h>
-#include "pt.h"
 
 void gdb_server_init(void);
-PT_THREAD(gdb_server_poll(void));
+void gdb_server_poll(void);
 
 #endif /* __RV_LINK_GDB_SERVER_GDB_SERVER_H__ */

@@ -1,6 +1,5 @@
 #include "gdb-packet.h"
 #include "nuclei_sdk_hal.h"
-#include "pt.h"
 
 void rvl_transport_init(void)
 {
@@ -24,7 +23,7 @@ void rvl_transport_init(void)
     usart_enable(UART4);
 }
 
-PT_THREAD(rvl_transport_poll(void))
+void rvl_transport_poll(void)
 {
     const uint8_t *send_buffer;
     size_t send_len;

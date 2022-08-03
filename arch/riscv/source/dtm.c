@@ -15,10 +15,8 @@ See the Mulan PSL v1 for more details.
 #include "dtm.h"
 #include "tap.h"
 #include "target-config.h"
-#include "pt.h"
 
 typedef struct rvl_dtm_s {
-    struct pt pt;
     uint8_t abits;
     uint32_t in[2];
     uint32_t out[2];
@@ -29,17 +27,8 @@ typedef struct rvl_dtm_s {
 static rvl_dtm_t rvl_dtm_i;
 #define self rvl_dtm_i
 
-
-#ifdef RVL_TARGET_CONFIG_DTM_YIELD_EN
-#define RVL_DTM_YIELD() PT_YIELD(&self.pt)
-#else
-#define RVL_DTM_YIELD()
-#endif
-
-
 void rvl_dtm_init(void)
 {
-    PT_INIT(&self.pt);
     self.last_jtag_reg = 0;
 
     rvl_tap_init();
@@ -53,76 +42,54 @@ void rvl_dtm_fini(void)
 }
 
 
-PT_THREAD(rvl_dtm_idcode(rvl_dtm_idcode_t* idcode))
+void rvl_dtm_idcode(rvl_dtm_idcode_t* idcode)
 {
-    PT_BEGIN(&self.pt);
-
     if (self.last_jtag_reg != RISCV_DTM_JTAG_REG_IDCODE) {
         self.in[0] = RISCV_DTM_JTAG_REG_IDCODE;
         self.last_jtag_reg = RISCV_DTM_JTAG_REG_IDCODE;
         rvl_tap_shift_ir(self.out, self.in, 5);
-        RVL_DTM_YIELD();
     }
 
     self.in[0] = 0;
     rvl_tap_shift_dr(self.out, self.in, 32);
-    RVL_DTM_YIELD();
 
     idcode->word = self.out[0];
-
-    PT_END(&self.pt);
 }
 
 
-PT_THREAD(rvl_dtm_dtmcs_dmireset(void))
+void rvl_dtm_dtmcs_dmireset(void)
 {
-    PT_BEGIN(&self.pt);
-
     if (self.last_jtag_reg != RISCV_DTM_JTAG_REG_DTMCS) {
         self.in[0] = RISCV_DTM_JTAG_REG_DTMCS;
         self.last_jtag_reg = RISCV_DTM_JTAG_REG_DTMCS;
         rvl_tap_shift_ir(self.out, self.in, 5);
-        RVL_DTM_YIELD();
     }
 
     self.in[0] = RISCV_DTMCS_DMI_RESET;
     rvl_tap_shift_dr(self.out, self.in, 32);
-    RVL_DTM_YIELD();
 
     if (self.idle) {
         rvl_tap_run(self.idle);
-        RVL_DTM_YIELD();
     }
-
-    PT_END(&self.pt);
 }
 
 
-PT_THREAD(rvl_dtm_run(uint32_t ticks))
+void rvl_dtm_run(uint32_t ticks)
 {
-    PT_BEGIN(&self.pt);
-
     rvl_tap_run(ticks);
-    RVL_DTM_YIELD();
-
-    PT_END(&self.pt);
 }
 
 
-PT_THREAD(rvl_dtm_dtmcs(rvl_dtm_dtmcs_t* dtmcs))
+void rvl_dtm_dtmcs(rvl_dtm_dtmcs_t* dtmcs)
 {
-    PT_BEGIN(&self.pt);
-
     if (self.last_jtag_reg != RISCV_DTM_JTAG_REG_DTMCS) {
         self.in[0] = RISCV_DTM_JTAG_REG_DTMCS;
         self.last_jtag_reg = RISCV_DTM_JTAG_REG_DTMCS;
         rvl_tap_shift_ir(self.out, self.in, 5);
-        RVL_DTM_YIELD();
     }
 
     self.in[0] = 0;
     rvl_tap_shift_dr(self.out, self.in, 32);
-    RVL_DTM_YIELD();
 
     dtmcs->word = self.out[0];
 
@@ -139,42 +106,31 @@ PT_THREAD(rvl_dtm_dtmcs(rvl_dtm_dtmcs_t* dtmcs))
     if (self.idle > 0) {
         self.idle -= 1;
     }
-
-    PT_END(&self.pt);
 }
 
 
 #if RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC == RISCV_DEBUG_SPEC_VERSION_V0P13
-PT_THREAD(rvl_dtm_dtmcs_dmihardreset(void))
+void rvl_dtm_dtmcs_dmihardreset(void)
 {
-    PT_BEGIN(&self.pt);
-
     if (self.last_jtag_reg != RISCV_DTM_JTAG_REG_DTMCS) {
         self.in[0] = RISCV_DTM_JTAG_REG_DTMCS;
         self.last_jtag_reg = RISCV_DTM_JTAG_REG_DTMCS;
         rvl_tap_shift_ir(self.out, self.in, 5);
-        RVL_DTM_YIELD();
     }
 
     self.in[0] = RISCV_DTMCS_DMI_HARD_RESET;
     rvl_tap_shift_dr(self.out, self.in, 32);
-    RVL_DTM_YIELD();
 
     if (self.idle) {
         rvl_tap_run(self.idle);
-        RVL_DTM_YIELD();
     }
-
-    PT_END(&self.pt);
 }
 #endif
 
 
 
-PT_THREAD(rvl_dtm_dmi(uint32_t addr, rvl_dmi_reg_t* data, uint32_t* op))
+void rvl_dtm_dmi(uint32_t addr, rvl_dmi_reg_t* data, uint32_t* op)
 {
-    PT_BEGIN(&self.pt);
-
     rvl_assert(addr <= ((1 << self.abits) - 1));
     rvl_assert(data != NULL);
     rvl_assert(op != NULL && *op <= 3);
@@ -183,7 +139,6 @@ PT_THREAD(rvl_dtm_dmi(uint32_t addr, rvl_dmi_reg_t* data, uint32_t* op))
         self.in[0] = RISCV_DTM_JTAG_REG_DMI;
         self.last_jtag_reg = RISCV_DTM_JTAG_REG_DMI;
         rvl_tap_shift_ir(self.out, self.in, 5);
-        RVL_DTM_YIELD();
     }
 
 #if RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC == RISCV_DEBUG_SPEC_VERSION_V0P13
@@ -197,11 +152,9 @@ PT_THREAD(rvl_dtm_dmi(uint32_t addr, rvl_dmi_reg_t* data, uint32_t* op))
 #else
 #error No RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC defined
 #endif
-    RVL_DTM_YIELD();
 
     if (self.idle) {
         rvl_tap_run(self.idle);
-        RVL_DTM_YIELD();
     }
 
 #if RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC == RISCV_DEBUG_SPEC_VERSION_V0P13
@@ -213,8 +166,6 @@ PT_THREAD(rvl_dtm_dmi(uint32_t addr, rvl_dmi_reg_t* data, uint32_t* op))
 #else
 #error No RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC defined
 #endif
-
-    PT_END(&self.pt);
 }
 
 

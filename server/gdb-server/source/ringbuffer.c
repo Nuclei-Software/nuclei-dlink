@@ -18,7 +18,6 @@
 
 /* own header file include */
 #include "ringbuffer.h"
-#include "pt.h"
 
 #define RVL_RINGBUFFER_SIZE 256
 
@@ -37,11 +36,6 @@ void gdb_ringbuffer_init(void)
 {
     self.head = 0;
     self.tail = 0;
-}
-
-PT_THREAD(gdb_ringbuffer_poll(void))
-{
-    return PT_ENDED;
 }
 
 size_t gdb_resp_buf_putchar(char c)

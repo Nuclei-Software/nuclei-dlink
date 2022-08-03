@@ -25,7 +25,6 @@
 
 /* own component header file includes */
 #include "target-config.h"
-#include "pt.h"
 
 /*
  * Debug Transport Module (DTM)
@@ -87,16 +86,16 @@ typedef union rvl_dtm_dtmcs_s
 
 void rvl_dtm_init(void);
 void rvl_dtm_fini(void);
-PT_THREAD(rvl_dtm_idcode(rvl_dtm_idcode_t* idcode));
-PT_THREAD(rvl_dtm_dtmcs(rvl_dtm_dtmcs_t* dtmcs));
-PT_THREAD(rvl_dtm_dtmcs_dmireset(void));
+void rvl_dtm_idcode(rvl_dtm_idcode_t* idcode);
+void rvl_dtm_dtmcs(rvl_dtm_dtmcs_t* dtmcs);
+void rvl_dtm_dtmcs_dmireset(void);
 
 #if RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC == RISCV_DEBUG_SPEC_VERSION_V0P13
-PT_THREAD(rvl_dtm_dtmcs_dmihardreset(void));
+void rvl_dtm_dtmcs_dmihardreset(void);
 #endif
 
-PT_THREAD(rvl_dtm_dmi(uint32_t addr, rvl_dmi_reg_t* data, uint32_t* op));
-PT_THREAD(rvl_dtm_run(uint32_t ticks));
+void rvl_dtm_dmi(uint32_t addr, rvl_dmi_reg_t* data, uint32_t* op);
+void rvl_dtm_run(uint32_t ticks);
 uint32_t rvl_dtm_get_dtmcs_abits(void);
 uint32_t rvl_dtm_get_dtmcs_idle(void);
 
