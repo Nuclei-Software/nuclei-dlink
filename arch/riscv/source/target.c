@@ -20,7 +20,7 @@
 #include "target.h"
 
 /* other library header file includes */
-
+#include "nuclei_sdk_soc.h"
 /* other project header file includes */
 #include "port.h"
 

@@ -17,181 +17,160 @@
  */
 
 /* system library header file includes */
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-/* own component header file includes */
+
+/* Kernel includes. */
+#include "FreeRTOS.h" /* Must come first. */
+#include "queue.h"    /* RTOS queue related API prototypes. */
+#include "semphr.h"   /* Semaphore related API prototypes. */
+#include "task.h"     /* RTOS task related API prototypes. */
+#include "timers.h"   /* Software timer related API prototypes. */
+
 #include "gdb-packet.h"
 
-typedef struct gdb_serial_command_s
-{
-    size_t total_len;
-    size_t cmd_len;
-    int index_dollar;
-    int index_sharp;
-    int index_scan;
-    bool busy;
+TaskHandle_t gdb_cmd_packet_xHandle = NULL;
+TaskHandle_t gdb_rsp_packet_xHandle = NULL;
+QueueHandle_t gdb_cmd_packet_xQueue;
+QueueHandle_t gdb_rsp_packet_xQueue;
+QueueHandle_t gdb_rxdata_xQueue;
+QueueHandle_t gdb_txdata_xQueue;
 
-    /* There is a '$' in the front of the command buffer, and
-     * a '#' checksum in the back, and possibly a '+' so add 8 more bytes.
-     */
-    char buffer[GDB_PACKET_COMMAND_BUFFER_SIZE + 8];
-} gdb_serial_command_t;
+static gdb_packet_t cmd = {0};
+static gdb_packet_t rsp = {0};
 
-typedef struct gdb_serial_response_s
-{
-    size_t total_len;
-    int index_start;
-    bool no_ack_mode;
-    bool busy;
-
-    /* The response buffer should also be filled with '$''#' checksum,
-     * and there may be '+', so add 8 more bytes.
-     */
-    char buffer[GDB_PACKET_RESPONSE_BUFFER_SIZE + 8];
-} gdb_serial_response_t;
-
-static gdb_serial_command_t gdb_serial_command_i;
-#define command gdb_serial_command_i
-
-static gdb_serial_response_t gdb_serial_response_i;
-#define response gdb_serial_response_i
+bool no_ack_mode;
 
 static uint8_t gdb_packet_checksum(const uint8_t* p, size_t len);
 
-/*---------------------------------------------------------------------------*/
+void gdb_cmd_packet_vTask(void* pvParameters)
+{
+    char ch;
+    BaseType_t xReturned;
+
+    for (;;) {
+        cmd.len = 0;
+        memset(cmd.data, 0x00, GDB_PACKET_BUFF_SIZE);
+        xQueueReceive(gdb_rxdata_xQueue, &ch, portMAX_DELAY);
+        switch (ch) {
+            /* Start Packet */
+            case '$':
+                while (1) {
+                    xReturned = xQueueReceive(gdb_rxdata_xQueue, &ch, (1000 / portTICK_PERIOD_MS));
+                    if (xReturned != pdPASS) {
+                        /* timeout warning msg */
+                        break;
+                    }
+                    /* End packet */
+                    if (ch == '#') {
+                        if (cmd.len > 0) {
+                            xQueueSend(gdb_cmd_packet_xQueue, &cmd, portMAX_DELAY);
+                        }
+                        break;
+                    }
+                    cmd.data[cmd.len++] = ch;
+                }
+                break;
+            /* Ctrl + C */
+            case '\x03':
+                cmd.data[cmd.len++] = ch;
+                xQueueSend(gdb_cmd_packet_xQueue, &cmd, portMAX_DELAY);
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+void gdb_rsp_packet_vTask(void* pvParameters)
+{
+    char ch;
+    uint8_t checksum;
+    BaseType_t xReturned;
+
+    for (;;) {
+    	rsp.len = 0;
+    	memset(rsp.data, 0x00, GDB_PACKET_BUFF_SIZE);
+        xQueueReceive(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+        if (no_ack_mode) {
+            ch = '$';
+            xQueueSend(gdb_txdata_xQueue, &ch, portMAX_DELAY);
+        } else {
+            ch = '+';
+            xQueueSend(gdb_txdata_xQueue, &ch, portMAX_DELAY);
+            ch = '$';
+            xQueueSend(gdb_txdata_xQueue, &ch, portMAX_DELAY);
+        }
+        for (int i = 0;i < rsp.len;i++) {
+            xQueueSend(gdb_txdata_xQueue, &rsp.data[i], portMAX_DELAY);
+        }
+        ch = '#';
+        xQueueSend(gdb_txdata_xQueue, &ch, portMAX_DELAY);
+        checksum = gdb_packet_checksum((const uint8_t*)&rsp.data, rsp.len);
+        /* 'checksum[0]' 'checksum[1]' '\0' */
+        snprintf(rsp.data, 3, "%02x", checksum);
+        xQueueSend(gdb_txdata_xQueue, &rsp.data[0], portMAX_DELAY);
+        xQueueSend(gdb_txdata_xQueue, &rsp.data[1], portMAX_DELAY);
+    }
+}
+
 void gdb_packet_init(void)
 {
-    /* initialize command pipe */
-    command.total_len = 0;
-    command.index_dollar = -1;
-    command.index_sharp = -1;
-    command.index_scan = 0;
-    command.busy = false;
+    BaseType_t xReturned;
 
-    /* initialize response pipe */
-    response.busy = true;
-    response.no_ack_mode = false;
-    response.total_len = 0;
-}
-/*---------------------------------------------------------------------------*/
-const char* gdb_packet_command_buffer(void)
-{
-    /* find index of '$' RSP packet start character in buffer */
-    for (; command.index_scan < command.total_len; command.index_scan++) {
-        if (command.index_dollar == -1 && command.buffer[command.index_scan] == '$') {
-            command.index_dollar = command.index_scan;
-        }
+    no_ack_mode = false;
 
-        /* find index of '#' RSP packet character in buffer */
-        if (command.index_sharp == -1 && command.buffer[command.index_scan] == '#') {
-            command.index_sharp = command.index_scan;
-        }
+    gdb_rxdata_xQueue = xQueueCreate(GDB_DATA_CACHE_SIZE, sizeof(char));
+    if (gdb_rxdata_xQueue == NULL) {
+        /* Queue was not created and must not be used. */
     }
 
-    if (command.index_dollar >= 0 && command.index_sharp > 0) {
-        command.busy = true;
-        /* found a complete RSP packet */
-        command.cmd_len = command.index_sharp - command.index_dollar - 1;
-        return &command.buffer[command.index_dollar + 1];
-    } else if (command.total_len == 1 && command.buffer[0] == '\x03') {
-        /* received a ctrl-C BREAK signal */
-        command.busy = true;
-        command.cmd_len = 1;
-        return &command.buffer[0];
-    } else {
-        return NULL;
-    }
-}
-/*---------------------------------------------------------------------------*/
-size_t gdb_packet_command_length(void)
-{
-    return command.cmd_len;
-}
-/*---------------------------------------------------------------------------*/
-void gdb_packet_command_done(void)
-{
-    command.busy = false;
-    command.total_len = 0;
-    command.cmd_len = 0;
-    command.index_dollar = -1;
-    command.index_sharp = -1;
-    command.index_scan = 0;
-}
-/*---------------------------------------------------------------------------*/
-bool gdb_packet_process_command(const uint8_t* buffer, size_t len)
-{
-    if (command.busy) {
-        return false;
-    } else {
-        if (sizeof(command.buffer) - command.total_len < len) {
-            return false;
-        } else {
-            memcpy(&command.buffer[command.total_len], buffer, len);
-            command.total_len += len;
-            return true;
-        }
-    }
-}
-/*---------------------------------------------------------------------------*/
-char* gdb_packet_response_buffer(void)
-{
-    if (response.busy) {
-        /* The first two bytes are used to fill in '+' and '$' */
-        return &response.buffer[2];
-    } else {
-        return NULL;
-    }
-}
-/*---------------------------------------------------------------------------*/
-void gdb_packet_response_done(size_t len, gdb_packet_send_flags_t send_flags)
-{
-    uint8_t checksum;
-
-    response.busy = false;
-    response.total_len = len;
-
-    if (send_flags & GDB_PACKET_SEND_FLAG_DOLLAR) {
-        response.buffer[1] = '$';
-        if (!response.no_ack_mode) {
-            response.buffer[0] = '+';
-            response.index_start = 0;
-            response.total_len += 2;
-        } else {
-            response.index_start = 1;
-            response.total_len += 1;
-        }
+    gdb_txdata_xQueue= xQueueCreate(GDB_DATA_CACHE_SIZE, sizeof(char));
+    if (gdb_txdata_xQueue == NULL) {
+        /* Queue was not created and must not be used. */
     }
 
-    if (send_flags & GDB_PACKET_SEND_FLAG_SHARP) {
-        response.buffer[response.total_len + response.index_start] = '#';
-        response.total_len++;
+    gdb_cmd_packet_xQueue = xQueueCreate(GDB_PACKET_NUM, sizeof(gdb_packet_t));
+    if (gdb_cmd_packet_xQueue == NULL) {
+        /* Queue was not created and must not be used. */
+    }
 
-        checksum = gdb_packet_checksum((const uint8_t*)&response.buffer[2], len);
-        snprintf(&response.buffer[response.total_len + response.index_start], 3, "%02x", checksum);
-        response.total_len += 2;
+    gdb_rsp_packet_xQueue= xQueueCreate(GDB_PACKET_NUM, sizeof(gdb_packet_t));
+    if (gdb_rsp_packet_xQueue == NULL) {
+        /* Queue was not created and must not be used. */
+    }
+
+    xReturned = xTaskCreate(gdb_cmd_packet_vTask,     /* Function that implements the task. */
+                            "gdb_cmd_packet",         /* Text name for the task. */
+                            256,                      /* Stack size in words, not bytes. */
+                            NULL,                     /* Parameter passed into the task. */
+                            3,                        /* Priority at which the task is created. */
+                            &gdb_cmd_packet_xHandle); /* Used to pass out the created task's handle. */
+    if(xReturned != pdPASS) {
+        /* error msg */
+        vTaskDelete(gdb_cmd_packet_xHandle);
+    }
+
+    xReturned = xTaskCreate(gdb_rsp_packet_vTask,     /* Function that implements the task. */
+                            "gdb_rsp_packet",         /* Text name for the task. */
+                            256,                      /* Stack size in words, not bytes. */
+                            NULL,                     /* Parameter passed into the task. */
+                            3,                        /* Priority at which the task is created. */
+                            &gdb_rsp_packet_xHandle); /* Used to pass out the created task's handle. */
+    if(xReturned != pdPASS) {
+        /* error msg */
+        vTaskDelete(gdb_rsp_packet_xHandle);
     }
 }
+
 /*---------------------------------------------------------------------------*/
-const uint8_t* gdb_packet_get_response(size_t* len)
+void gdb_set_no_ack_mode(bool mode)
 {
-    if (response.busy) {
-        return NULL;
-    } else {
-        *len = response.total_len;
-        return (uint8_t*)(&response.buffer[response.index_start]);
-    }
-}
-/*---------------------------------------------------------------------------*/
-void gdb_packet_release_response(void)
-{
-    response.total_len = 0;
-    response.busy = true;
-}
-/*---------------------------------------------------------------------------*/
-void gdb_packet_no_ack_mode(bool no_ack_mode)
-{
-    response.no_ack_mode = no_ack_mode;
+    no_ack_mode = mode;
 }
 /*---------------------------------------------------------------------------*/
 static uint8_t gdb_packet_checksum(const uint8_t* p, size_t len)

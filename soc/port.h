@@ -30,6 +30,5 @@ void rvl_jtag_tck_low_delay();
 int rvl_jtag_tdo_get();
 
 void rvl_transport_init(void);
-void rvl_transport_poll(void);
 
 #endif /* __RV_LINK_LINK_JTAG_H__ */

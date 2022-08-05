@@ -33,23 +33,22 @@
 
 /* own component header file includes */
 #include "gdb-packet.h"
-#include "gdb-packet.h"
 #include "ringbuffer.h"
+
+static gdb_packet_t cmd = {0};
+static gdb_packet_t rsp = {0};
 
 typedef int16_t gdb_server_tid_t;
 
 typedef struct gdb_server_s
 {
-    const char *cmd;
-    size_t cmd_len;
-    char *res;
     bool target_running;
     bool gdb_connected;
     rvl_target_halt_info_t halt_info;
     rvl_target_error_t target_error;
     rvl_target_addr_t mem_addr;
     size_t mem_len;
-    uint8_t mem_buffer[GDB_PACKET_RESPONSE_BUFFER_SIZE];
+    uint8_t mem_buffer[GDB_PACKET_BUFF_SIZE];
     int flash_err;
     int i;
     rvl_target_reg_t regs[RVL_TARGET_CONFIG_REG_NUM];
@@ -115,11 +114,6 @@ static size_t bin_decode(const uint8_t* xbin, uint8_t* bin, size_t xbin_len);
 
 void gdb_server_init(void)
 {
-    int err;
-
-    gdb_ringbuffer_init();
-    gdb_packet_init();
-
     gdb_server_target_run(false);
     self.gdb_connected = false;
 }
@@ -131,35 +125,28 @@ void gdb_server_poll(void)
     size_t ret, len;
 
     for (;;) {
+        rsp.len = 0;
         if (self.gdb_connected && self.target_running) {
             ret = gdb_resp_buf_getchar(&c);
             if (ret > 0) {
-                self.res[0] = 'O';
+                rsp.data[0] = 'O';
                 len = 0;
                 do {
-                    bin_to_hex((uint8_t*)&c, &self.res[1 + len * 2], 1);
+                    bin_to_hex((uint8_t*)&c, &rsp.data[1 + len * 2], 1);
                     len++;
                     ret = gdb_resp_buf_getchar(&c);
                 } while (ret > 0);
-
-                gdb_packet_response_done(len * 2 + 1, GDB_PACKET_SEND_FLAG_ALL);
-
-                self.res = gdb_packet_response_buffer();
-                if (NULL == self.res) {
-                    return;
-                }
+                //TODO:send ringbuffer
             }
 
-            self.cmd = gdb_packet_command_buffer();
-            if (self.cmd != NULL) {
-                self.cmd_len = gdb_packet_command_length();
-                if (*self.cmd == '\x03' && self.cmd_len == 1) {
-                    gdb_server_cmd_ctrl_c();
-                    gdb_server_target_run(false);
-                    strncpy(self.res, "T02", GDB_PACKET_RESPONSE_BUFFER_SIZE);
-                    gdb_packet_response_done(3, GDB_PACKET_SEND_FLAG_ALL);
-                }
-                gdb_packet_command_done();
+            xQueueReceive(gdb_cmd_packet_xQueue, &cmd, portMAX_DELAY);
+            if (*cmd.data == '\x03' && cmd.len == 1) {
+                gdb_server_cmd_ctrl_c();
+                gdb_server_target_run(false);
+                strncpy(rsp.data, "T02", GDB_PACKET_BUFF_SIZE);
+                rsp.len = 3;
+                // rsp.len = strlen(rsp.data);
+                xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
             }
 
             if (self.target_running) {
@@ -168,36 +155,27 @@ void gdb_server_poll(void)
                     gdb_server_target_run(false);
 
                     if (self.halt_info.reason == rvl_target_halt_reason_other) {
-                        strncpy(self.res, "T05", GDB_PACKET_RESPONSE_BUFFER_SIZE);
+                        strncpy(rsp.data, "T05", GDB_PACKET_BUFF_SIZE);
                     } else if (self.halt_info.reason == rvl_target_halt_reason_write_watchpoint) {
-                        snprintf(self.res, GDB_PACKET_RESPONSE_BUFFER_SIZE, "T05watch:%x;", (unsigned int)self.halt_info.addr);
+                        snprintf(rsp.data, GDB_PACKET_BUFF_SIZE, "T05watch:%x;", (unsigned int)self.halt_info.addr);
                     } else if (self.halt_info.reason == rvl_target_halt_reason_read_watchpoint) {
-                        snprintf(self.res, GDB_PACKET_RESPONSE_BUFFER_SIZE, "T05rwatch:%x;", (unsigned int)self.halt_info.addr);
+                        snprintf(rsp.data, GDB_PACKET_BUFF_SIZE, "T05rwatch:%x;", (unsigned int)self.halt_info.addr);
                     } else if (self.halt_info.reason == rvl_target_halt_reason_access_watchpoint) {
-                        snprintf(self.res, GDB_PACKET_RESPONSE_BUFFER_SIZE, "T05awatch:%x;", (unsigned int)self.halt_info.addr);
+                        snprintf(rsp.data, GDB_PACKET_BUFF_SIZE, "T05awatch:%x;", (unsigned int)self.halt_info.addr);
                     } else if (self.halt_info.reason == rvl_target_halt_reason_hardware_breakpoint) {
-                        strncpy(self.res, "T05hwbreak:;", GDB_PACKET_RESPONSE_BUFFER_SIZE);
+                        strncpy(rsp.data, "T05hwbreak:;", GDB_PACKET_BUFF_SIZE);
                     } else if (self.halt_info.reason == rvl_target_halt_reason_software_breakpoint) {
-                        strncpy(self.res, "T05swbreak:;", GDB_PACKET_RESPONSE_BUFFER_SIZE);
+                        strncpy(rsp.data, "T05swbreak:;", GDB_PACKET_BUFF_SIZE);
                     } else {
-
+                        //TODO:
                     }
-                    gdb_packet_response_done(strlen(self.res), GDB_PACKET_SEND_FLAG_ALL);
+                    rsp.len = strlen(rsp.data);
+                    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
                 }
             }
         } else {
-            self.cmd = gdb_packet_command_buffer();
-            if (NULL == self.cmd) {
-                return;
-            }
-            self.cmd_len = gdb_packet_command_length();
-
-            self.res = gdb_packet_response_buffer();
-            if (NULL == self.res) {
-                return;
-            }
-
-            c = *self.cmd;
+            xQueueReceive(gdb_cmd_packet_xQueue, &cmd, portMAX_DELAY);
+            c = *cmd.data;
             if (c == 'q') {
                 gdb_server_cmd_q();
             } else if (c == 'Q') {
@@ -235,8 +213,6 @@ void gdb_server_poll(void)
             } else {
                 gdb_server_reply_empty();
             }
-
-            gdb_packet_command_done();
         }
     }
 }
@@ -248,13 +224,13 @@ void gdb_server_poll(void)
  */
 void gdb_server_cmd_q(void)
 {
-    if (strncmp(self.cmd, "qSupported:", 11) == 0) {
+    if (strncmp(cmd.data, "qSupported:", 11) == 0) {
         gdb_server_cmd_qSupported();
-    } else if (strncmp(self.cmd, "qXfer:features:read:target.xml:", 31) == 0) {
+    } else if (strncmp(cmd.data, "qXfer:features:read:target.xml:", 31) == 0) {
         gdb_server_cmd_qxfer_features_read_target_xml();
-    } else if (strncmp(self.cmd, "qXfer:memory-map:read::", 23) == 0) {
+    } else if (strncmp(cmd.data, "qXfer:memory-map:read::", 23) == 0) {
         gdb_server_cmd_qxfer_memory_map_read();
-    } else if (strncmp(self.cmd, "qRcmd,", 6) == 0) {
+    } else if (strncmp(cmd.data, "qRcmd,", 6) == 0) {
         gdb_server_cmd_qRcmd();
     } else {
         gdb_server_reply_empty();
@@ -278,9 +254,11 @@ void gdb_server_cmd_qSupported(void)
             ";hwbreak+"
             ;
 
-    gdb_packet_no_ack_mode(false);
-    strncpy(self.res, qSupported_res, GDB_PACKET_RESPONSE_BUFFER_SIZE);
-    gdb_packet_response_done(strlen(qSupported_res), GDB_PACKET_SEND_FLAG_ALL);
+    gdb_set_no_ack_mode(false);
+    strncpy(rsp.data, qSupported_res, GDB_PACKET_BUFF_SIZE);
+    rsp.len = strlen(qSupported_res);
+    // rsp.len = strlen(rsp.data);
+    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
     gdb_server_connected();
 }
 
@@ -295,24 +273,26 @@ static void gdb_server_cmd_qxfer_features_read_target_xml(void)
     unsigned int read_addr;
     unsigned int read_len;
 
-    sscanf(&self.cmd[31], "%x,%x", &read_addr, &read_len);
+    sscanf(&cmd.data[31], "%x,%x", &read_addr, &read_len);
 
-    if (read_len > GDB_PACKET_RESPONSE_BUFFER_SIZE) {
-        read_len = GDB_PACKET_RESPONSE_BUFFER_SIZE;
+    if (read_len > GDB_PACKET_BUFF_SIZE) {
+        read_len = GDB_PACKET_BUFF_SIZE;
     }
 
     target_xml_len = rvl_target_get_target_xml_len();
 
     if (read_len >= target_xml_len - read_addr) {
         read_len = target_xml_len - read_addr;
-        self.res[0] = 'l';
+        rsp.data[0] = 'l';
     } else {
-        self.res[0] = 'm';
+        rsp.data[0] = 'm';
     }
 
     target_xml_str = rvl_target_get_target_xml();
-    strncpy(&self.res[1], &target_xml_str[read_addr], read_len);
-    gdb_packet_response_done(read_len + 1, GDB_PACKET_SEND_FLAG_ALL);
+    strncpy(&rsp.data[1], &target_xml_str[read_addr], read_len);
+    rsp.len = read_len + 1;
+    // rsp.len = strlen(rsp.data);
+    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 
 /*
@@ -323,19 +303,21 @@ static void gdb_server_cmd_qxfer_memory_map_read(void)
     size_t res_len;
 
     res_len = 0;
-    res_len += snprintf(&self.res[0], GDB_PACKET_RESPONSE_BUFFER_SIZE, "l<memory-map>");
+    res_len += snprintf(&rsp.data[0], GDB_PACKET_BUFF_SIZE, "l<memory-map>");
 #if RVL_TARGET_CONFIG_ADDR_WIDTH == 32
-    res_len += snprintf(&self.res[res_len], GDB_PACKET_RESPONSE_BUFFER_SIZE - res_len,
+    res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
             "<memory type=\"%s\" start=\"0x%x\" length=\"0x%x\"", "ram", 0x00, 0x00);
-    res_len += snprintf(&self.res[res_len], GDB_PACKET_RESPONSE_BUFFER_SIZE - res_len,
+    res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
             "/>");
 #else
 #error FIXME
 #endif
-    res_len += snprintf(&self.res[res_len], GDB_PACKET_RESPONSE_BUFFER_SIZE - res_len,
+    res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
             "</memory-map>");
 
-    gdb_packet_response_done(res_len, GDB_PACKET_SEND_FLAG_ALL);
+    rsp.len = res_len;
+    // rsp.len = strlen(rsp.data);
+    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 #if 0
     size_t memory_map_len;
     const rvl_target_memory_t* memory_map;
@@ -349,30 +331,32 @@ static void gdb_server_cmd_qxfer_memory_map_read(void)
     memory_map = rvl_target_get_memory_map();
 
     res_len = 0;
-    res_len += snprintf(&self.res[0], GDB_PACKET_RESPONSE_BUFFER_SIZE, "l<memory-map>");
+    res_len += snprintf(&rsp.data[0], GDB_PACKET_BUFF_SIZE, "l<memory-map>");
     for(self.i = 0; self.i < memory_map_len; self.i++) {
 #if RVL_TARGET_CONFIG_ADDR_WIDTH == 32
-        res_len += snprintf(&self.res[res_len], GDB_PACKET_RESPONSE_BUFFER_SIZE - res_len,
+        res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
                 "<memory type=\"%s\" start=\"0x%x\" length=\"0x%x\"",
                 memory_map[self.i].type == rvl_target_memory_type_flash ? "flash" : "ram",
                 (unsigned int)memory_map[self.i].start, (unsigned int)memory_map[self.i].length);
 
         if (memory_map[self.i].type == rvl_target_memory_type_flash) {
-            res_len += snprintf(&self.res[res_len], GDB_PACKET_RESPONSE_BUFFER_SIZE - res_len,
+            res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
                     "><property name=\"blocksize\">0x%x</property></memory>",
                     (unsigned int)memory_map[self.i].blocksize);
         } else {
-            res_len += snprintf(&self.res[res_len], GDB_PACKET_RESPONSE_BUFFER_SIZE - res_len,
+            res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
                     "/>");
         }
 #else
 #error FIXME
 #endif
     }
-    res_len += snprintf(&self.res[res_len], GDB_PACKET_RESPONSE_BUFFER_SIZE - res_len,
+    res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
             "</memory-map>");
 
-    gdb_packet_response_done(res_len, GDB_PACKET_SEND_FLAG_ALL);
+    rsp.len = res_len;
+    // rsp.len = strlen(rsp.data);
+    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 #endif
 }
 /*
@@ -388,26 +372,8 @@ void gdb_server_cmd_qRcmd(void)
     int err;
     const char unspported_monitor_command[] = ":( unsupported monitor command!\n";
 
-    ret = gdb_resp_buf_getchar(&c);
-    if (ret > 0) {
-        self.res[0] = 'O';
-        len = 0;
-        do {
-            bin_to_hex((uint8_t*)&c, &self.res[1 + len * 2], 1);
-            len++;
-            ret = gdb_resp_buf_getchar(&c);
-        } while (ret > 0);
-
-        gdb_packet_response_done(len * 2 + 1, GDB_PACKET_SEND_FLAG_ALL);
-
-        self.res = gdb_packet_response_buffer();
-        if (NULL == self.res) {
-            return;
-        }
-    }
-
-    self.mem_len = (self.cmd_len - 6) / 2;
-    hex_to_bin(&self.cmd[6], self.mem_buffer, self.mem_len);
+    self.mem_len = (cmd.len - 6) / 2;
+    hex_to_bin(&cmd.data[6], self.mem_buffer, self.mem_len);
     self.mem_buffer[self.mem_len] = 0;
 
     if (strncmp((char*)self.mem_buffer, "reset", 5) == 0) {
@@ -417,21 +383,20 @@ void gdb_server_cmd_qRcmd(void)
         gdb_server_reply_ok();
     } else if (strncmp((char*)self.mem_buffer, "show error", 10) == 0) {
         rvl_target_get_error(&err_str, &err_pc);
-        snprintf((char*)self.mem_buffer, GDB_PACKET_RESPONSE_BUFFER_SIZE,
+        snprintf((char*)self.mem_buffer, GDB_PACKET_BUFF_SIZE,
                 "RV-LINK ERROR: %s, @0x%08x\r\n", err_str, (unsigned int)err_pc);
         len = strlen((char*)self.mem_buffer);
-        self.res[0] = 'O';
-        bin_to_hex(self.mem_buffer, &self.res[1], len);
-        gdb_packet_response_done(len * 2 + 1, GDB_PACKET_SEND_FLAG_ALL);
-
-        self.res = gdb_packet_response_buffer();
-        if (NULL == self.res) {
-            return;
-        }
+        rsp.data[0] = 'O';
+        bin_to_hex(self.mem_buffer, &rsp.data[1], len);
+        rsp.len = len * 2 + 1;
+        // rsp.len = strlen(rsp.data);
+        xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
         gdb_server_reply_ok();
     } else {
-        bin_to_hex((uint8_t*)unspported_monitor_command, self.res, sizeof(unspported_monitor_command) - 1);
-        gdb_packet_response_done((sizeof(unspported_monitor_command) - 1) * 2, GDB_PACKET_SEND_FLAG_ALL);
+        bin_to_hex((uint8_t*)unspported_monitor_command, rsp.data, sizeof(unspported_monitor_command) - 1);
+        rsp.len = (sizeof(unspported_monitor_command) - 1) * 2;
+        // rsp.len = strlen(rsp.data);
+        xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
     }
 }
 
@@ -442,9 +407,9 @@ void gdb_server_cmd_qRcmd(void)
  */
 void gdb_server_cmd_Q(void)
 {
-    if (strncmp(self.cmd, "QStartNoAckMode", 15) == 0) {
+    if (strncmp(cmd.data, "QStartNoAckMode", 15) == 0) {
         gdb_server_reply_ok();
-        gdb_packet_no_ack_mode(true);
+        gdb_set_no_ack_mode(true);
     } else {
         gdb_server_reply_empty();
     }
@@ -458,22 +423,22 @@ void gdb_server_cmd_Q(void)
 void gdb_server_cmd_H(void)
 {
     unsigned int n;
-    char cmd;
+    char ch;
     gdb_server_tid_t tid;
 
-    cmd = self.cmd[1];
-    if (cmd == 'g' || cmd == 'G' || cmd == 'm' || cmd == 'M' || cmd == 'c') {
-        sscanf(&self.cmd[2], "%x", &n);
+    ch = cmd.data[1];
+    if (ch == 'g' || ch == 'G' || ch == 'm' || ch == 'M' || ch == 'c') {
+        sscanf(&cmd.data[2], "%x", &n);
         gdb_server_reply_ok();
 
         tid = (gdb_server_tid_t)n;
-        if (cmd == 'g') {
+        if (ch == 'g') {
             self.tid_g = tid;
-        } else if (cmd == 'G') {
+        } else if (ch == 'G') {
             self.tid_G = tid;
-        } else if (cmd == 'm') {
+        } else if (ch == 'm') {
             self.tid_m = tid;
-        } else if (cmd == 'M') {
+        } else if (ch == 'M') {
             self.tid_M = tid;
         } else {
             self.tid_c = tid;
@@ -490,8 +455,10 @@ void gdb_server_cmd_H(void)
  */
 void gdb_server_cmd_question_mark(void)
 {
-    strncpy(self.res, "S02", GDB_PACKET_RESPONSE_BUFFER_SIZE);
-    gdb_packet_response_done(3, GDB_PACKET_SEND_FLAG_ALL);
+    strncpy(rsp.data, "S02", GDB_PACKET_BUFF_SIZE);
+    rsp.len = 3;
+    // rsp.len = strlen(rsp.data);
+    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 
 
@@ -506,10 +473,11 @@ void gdb_server_cmd_g(void)
     rvl_target_read_core_registers(&self.regs[0]);
 
     for(i = 0; i < RVL_TARGET_CONFIG_REG_NUM; i++) {
-        word_to_hex_le(self.regs[i], &self.res[i * (RVL_TARGET_CONFIG_REG_WIDTH / 8 * 2)]);
+        word_to_hex_le(self.regs[i], &rsp.data[i * (RVL_TARGET_CONFIG_REG_WIDTH / 8 * 2)]);
     }
-
-    gdb_packet_response_done(RVL_TARGET_CONFIG_REG_WIDTH / 8 * 2 * RVL_TARGET_CONFIG_REG_NUM, GDB_PACKET_SEND_FLAG_ALL);
+    rsp.len = RVL_TARGET_CONFIG_REG_WIDTH / 8 * 2 * RVL_TARGET_CONFIG_REG_NUM;
+    // rsp.len = strlen(rsp.data);
+    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 
 
@@ -522,7 +490,7 @@ void gdb_server_cmd_G(void)
     int i;
 
     for(i = 0; i < RVL_TARGET_CONFIG_REG_NUM; i++) {
-        hex_to_word_le(&self.cmd[i * (RVL_TARGET_CONFIG_REG_WIDTH / 8 * 2) + 1], &self.regs[i]);
+        hex_to_word_le(&cmd.data[i * (RVL_TARGET_CONFIG_REG_WIDTH / 8 * 2) + 1], &self.regs[i]);
     }
 
     rvl_target_write_core_registers(&self.regs[0]);
@@ -537,13 +505,15 @@ void gdb_server_cmd_G(void)
  */
 void gdb_server_cmd_p(void)
 {
-    sscanf(&self.cmd[1], "%x", &self.reg_tmp_num);
+    sscanf(&cmd.data[1], "%x", &self.reg_tmp_num);
 
     rvl_target_read_register(&self.reg_tmp, self.reg_tmp_num);
 
-    word_to_hex_le(self.reg_tmp, &self.res[0]);
+    word_to_hex_le(self.reg_tmp, &rsp.data[0]);
 
-    gdb_packet_response_done(RVL_TARGET_CONFIG_REG_WIDTH / 8 * 2, GDB_PACKET_SEND_FLAG_ALL);
+    rsp.len = RVL_TARGET_CONFIG_REG_WIDTH / 8 * 2;
+    // rsp.len = strlen(rsp.data);
+    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 
 
@@ -556,8 +526,8 @@ void gdb_server_cmd_P(void)
 {
     const char *p;
 
-    sscanf(&self.cmd[1], "%x", &self.reg_tmp_num);
-    p = strchr(&self.cmd[1], '=');
+    sscanf(&cmd.data[1], "%x", &self.reg_tmp_num);
+    p = strchr(&cmd.data[1], '=');
     p++;
 
     hex_to_word_le(p, &self.reg_tmp);
@@ -576,10 +546,10 @@ void gdb_server_cmd_m(void)
 {
     char *p;
 
-    p = strchr(&self.cmd[1], ',');
+    p = strchr(&cmd.data[1], ',');
     p++;
 #if RVL_TARGET_CONFIG_ADDR_WIDTH == 32
-    sscanf(&self.cmd[1], "%x", (unsigned int*)(&self.mem_addr));
+    sscanf(&cmd.data[1], "%x", (unsigned int*)(&self.mem_addr));
 #else
 #error
 #endif
@@ -590,8 +560,10 @@ void gdb_server_cmd_m(void)
 
     rvl_target_read_memory(self.mem_buffer, self.mem_addr, self.mem_len);
 
-    bin_to_hex(self.mem_buffer, self.res, self.mem_len);
-    gdb_packet_response_done(self.mem_len * 2, GDB_PACKET_SEND_FLAG_ALL);
+    bin_to_hex(self.mem_buffer, rsp.data, self.mem_len);
+    rsp.len = self.mem_len * 2;
+    // rsp.len = strlen(rsp.data);
+    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 
 
@@ -603,8 +575,8 @@ void gdb_server_cmd_M(void)
 {
     const char *p;
 
-    sscanf(&self.cmd[1], "%x,%x", (unsigned int*)(&self.mem_addr), (unsigned int*)(&self.mem_len));
-    p = strchr(&self.cmd[1], ':');
+    sscanf(&cmd.data[1], "%x,%x", (unsigned int*)(&self.mem_addr), (unsigned int*)(&self.mem_len));
+    p = strchr(&cmd.data[1], ':');
     p++;
 
     if (self.mem_len > sizeof(self.mem_buffer)) {
@@ -627,20 +599,20 @@ void gdb_server_cmd_X(void)
     const char *p;
     size_t length;
 
-    sscanf(&self.cmd[1], "%x,%x", (unsigned int*)(&self.mem_addr), (unsigned int*)(&self.mem_len));
+    sscanf(&cmd.data[1], "%x,%x", (unsigned int*)(&self.mem_addr), (unsigned int*)(&self.mem_len));
     if (self.mem_len == 0) {
         gdb_server_reply_ok();
         return;
     }
 
-    p = strchr(&self.cmd[1], ':');
+    p = strchr(&cmd.data[1], ':');
     p++;
 
     if (self.mem_len > sizeof(self.mem_buffer)) {
         self.mem_len = sizeof(self.mem_buffer);
     }
 
-    length = self.cmd_len - ((size_t)p - (size_t)self.cmd);
+    length = cmd.len - ((size_t)p - (size_t)cmd.data);
     bin_decode((uint8_t*)p, self.mem_buffer, length);
 
     rvl_target_write_memory(self.mem_buffer, self.mem_addr, self.mem_len);
@@ -693,7 +665,7 @@ void gdb_server_cmd_z(void)
 {
     int type, addr, kind;
 
-    sscanf(self.cmd, "z%x,%x,%x", &type, &addr, &kind);
+    sscanf(cmd.data, "z%x,%x,%x", &type, &addr, &kind);
     self.breakpoint_type = type;
     self.breakpoint_addr = addr;
     self.breakpoint_kind = kind;
@@ -717,7 +689,7 @@ void gdb_server_cmd_Z(void)
 {
     int type, addr, kind;
 
-    sscanf(self.cmd, "Z%x,%x,%x", &type, &addr, &kind);
+    sscanf(cmd.data, "Z%x,%x,%x", &type, &addr, &kind);
     self.breakpoint_type = type;
     self.breakpoint_addr = addr;
     self.breakpoint_kind = kind;
@@ -747,13 +719,13 @@ void gdb_server_cmd_ctrl_c(void)
  */
 void gdb_server_cmd_v(void)
 {
-    if (strncmp(self.cmd, "vFlashErase:", 12) == 0) {
+    if (strncmp(cmd.data, "vFlashErase:", 12) == 0) {
         gdb_server_cmd_vFlashErase();
-    } else if (strncmp(self.cmd, "vFlashWrite:", 12) == 0) {
+    } else if (strncmp(cmd.data, "vFlashWrite:", 12) == 0) {
         gdb_server_cmd_vFlashWrite();
-    } else if (strncmp(self.cmd, "vFlashDone", 10) == 0) {
+    } else if (strncmp(cmd.data, "vFlashDone", 10) == 0) {
         gdb_server_cmd_vFlashDone();
-    } else if (strncmp(self.cmd, "vMustReplyEmpty", 15) == 0) {
+    } else if (strncmp(cmd.data, "vMustReplyEmpty", 15) == 0) {
         gdb_server_cmd_vMustReplyEmpty();
     } else {
         gdb_server_reply_empty();
@@ -769,7 +741,7 @@ void gdb_server_cmd_vFlashErase(void)
 {
     int addr, length;
 
-    sscanf(&self.cmd[12], "%x,%x", &addr, &length);
+    sscanf(&cmd.data[12], "%x,%x", &addr, &length);
     self.mem_addr = addr;
     self.mem_len = length;
 
@@ -794,13 +766,13 @@ void gdb_server_cmd_vFlashWrite(void)
     const char *p;
     size_t length;
 
-    sscanf(&self.cmd[12], "%x", &addr);
+    sscanf(&cmd.data[12], "%x", &addr);
     self.mem_addr = addr;
 
-    p = strchr(&self.cmd[12], ':');
+    p = strchr(&cmd.data[12], ':');
     p++;
 
-    length = self.cmd_len - ((size_t)p - (size_t)self.cmd);
+    length = cmd.len - ((size_t)p - (size_t)cmd.data);
     self.mem_len = bin_decode((uint8_t*)p, self.mem_buffer, length);
 
     rvl_target_flash_write(self.mem_addr, self.mem_len, self.mem_buffer, &self.flash_err);
@@ -838,10 +810,12 @@ void gdb_server_cmd_vMustReplyEmpty(void)
     } else {
         len = 0;
         while (gdb_resp_buf_getchar(&c)) {
-            self.res[len] = c;
+            rsp.data[len] = c;
             len++;
         }
-        gdb_packet_response_done(len, GDB_PACKET_SEND_FLAG_ALL);
+        rsp.len = len;
+        // rsp.len = strlen(rsp.data);
+        xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 
         gdb_server_disconnected();
     }
@@ -850,21 +824,25 @@ void gdb_server_cmd_vMustReplyEmpty(void)
 
 static void gdb_server_reply_ok(void)
 {
-    strncpy(self.res, "OK", GDB_PACKET_RESPONSE_BUFFER_SIZE);
-    gdb_packet_response_done(2, GDB_PACKET_SEND_FLAG_ALL);
+    strncpy(rsp.data, "OK", GDB_PACKET_BUFF_SIZE);
+    rsp.len = 2;
+    // rsp.len = strlen(rsp.data);
+    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 
 
 static void gdb_server_reply_empty(void)
 {
-    gdb_packet_response_done(0, GDB_PACKET_SEND_FLAG_ALL);
+    rsp.len = 0;
+    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 
 
 static void gdb_server_reply_err(int err)
 {
-    snprintf(self.res, GDB_PACKET_RESPONSE_BUFFER_SIZE, "E%02x", err);
-    gdb_packet_response_done(strlen(self.res), GDB_PACKET_SEND_FLAG_ALL);
+    snprintf(rsp.data, GDB_PACKET_BUFF_SIZE, "E%02x", err);
+    rsp.len = strlen(rsp.data);
+    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 
 

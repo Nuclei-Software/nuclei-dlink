@@ -1,4 +1,5 @@
 TARGET = dlink
+RTOS = FreeRTOS
 
 NUCLEI_SDK_ROOT ?= ../nuclei-sdk
 

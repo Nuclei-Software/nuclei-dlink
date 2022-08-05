@@ -23,80 +23,32 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define GDB_PACKET_COMMAND_BUFFER_SIZE          1024
-#define GDB_PACKET_RESPONSE_BUFFER_SIZE         1024
+/* Kernel includes. */
+#include "FreeRTOS.h" /* Must come first. */
+#include "queue.h"    /* RTOS queue related API prototypes. */
+#include "semphr.h"   /* Semaphore related API prototypes. */
+#include "task.h"     /* RTOS task related API prototypes. */
+#include "timers.h"   /* Software timer related API prototypes. */
 
-typedef enum send_flags_e {
-    GDB_PACKET_SEND_FLAG_DOLLAR                 = (1 << 0),
-    GDB_PACKET_SEND_FLAG_SHARP                  = (1 << 1),
-    GDB_PACKET_SEND_FLAG_ALL                    = (GDB_PACKET_SEND_FLAG_DOLLAR | GDB_PACKET_SEND_FLAG_SHARP),
-} gdb_packet_send_flags_t;
+#define GDB_DATA_CACHE_SIZE           (1024)
+#define GDB_PACKET_BUFF_SIZE          (1024 + 8)
+#define GDB_PACKET_NUM                (3)
+
+typedef struct {
+    uint32_t len;
+    char data[GDB_PACKET_BUFF_SIZE];
+} gdb_packet_t;
+
+extern QueueHandle_t gdb_cmd_packet_xQueue;
+extern QueueHandle_t gdb_rsp_packet_xQueue;
+extern QueueHandle_t gdb_rxdata_xQueue;
+extern QueueHandle_t gdb_txdata_xQueue;
 
 void gdb_packet_init(void);
 
 /*
- * GDB server calls gdb_packet_command_buffer to get the address of the first
- * character of the command, not including '$'. If NULL is returned, it means
- * that the USB Serial has actually received the command and cannot be used by
- * GDB server temporarily.
- */
-const char* gdb_packet_command_buffer(void);
-
-/*
- * GDB server calls gdb_packet_command_length to get the length of the command,
- * not including the '$', '#' or checksum. This should only be called when
- * gdb_packet_command_buffer returns a non-NULL value.
- */
-size_t gdb_packet_command_length(void);
-
-/*
- * GDB server calls gdb_packet_command_done after processing the command to
- * inform GDB serial that it can receive the next command.
- */
-void gdb_packet_command_done(void);
-
-/*
- * GDB server calls gdb_packet_response_buffer to get the first address of the
- * response data buffer, GDB server does not need to write '$''#' checksum.
- * If NULL is returned, it means that the response buffer is actually used by
- * USB Serial, and GDB server cannot be used.
- */
-char* gdb_packet_response_buffer(void);
-
-/*
- * GDB server calls gdb_packet_response_done to notify GDB serial to send
- * a response, before sending, GDB serial fills in the '$', '#' and checksum
- * according to the send_flags.
- */
-void gdb_packet_response_done(size_t len, gdb_packet_send_flags_t send_flags);
-
-/*
  * Enter NoAckMode.
  */
-void gdb_packet_no_ack_mode(bool no_ack_mode);
-
-/* TODO correct comments
- * After USB serial receives the data, it calls gdb_packet_process_command to
- * transfer data to the component using the virtual serial port.
- * If the return value is false, then the buffer is full and try again later;
- * if the return value is true, the transmission is successful and the next
- * packet of data can be received.
- */
-bool gdb_packet_process_command(const uint8_t* buffer, size_t len);
-
-/* TODO correct comments
- * USB serial calls gdb_packet_get_response to check if there is data to
- * be sent. If the return value is valid, then there is data to be sent, and the
- * length of the data to be sent is returned by the len parameter; if it returns
- * NULL, it means that there is no data to send.
- */
-const uint8_t* gdb_packet_get_response(size_t* len);
-
-/* TODO correct comments
- * After USB serial sends data, call gdb_packet_release_response to notify the
- * components using the virtual serial port. After receiving the notification,
- * the consumer can start using the sending buffer again.
- */
-void gdb_packet_release_response(void);
+void gdb_set_no_ack_mode(bool no_ack_mode);
 
 #endif /* __RV_LINK_GDB_SERVER_GDB_PACKET_H__ */
