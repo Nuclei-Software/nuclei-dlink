@@ -60,7 +60,7 @@ void gdb_cmd_packet_vTask(void* pvParameters)
             /* Start Packet */
             case '$':
                 while (1) {
-                    xReturned = xQueueReceive(gdb_rxdata_xQueue, &ch, (1000 / portTICK_PERIOD_MS));
+                    xReturned = xQueueReceive(gdb_rxdata_xQueue, &ch, (100 / portTICK_PERIOD_MS));
                     if (xReturned != pdPASS) {
                         /* timeout warning msg */
                         break;
@@ -93,8 +93,6 @@ void gdb_rsp_packet_vTask(void* pvParameters)
     BaseType_t xReturned;
 
     for (;;) {
-    	rsp.len = 0;
-    	memset(rsp.data, 0x00, GDB_PACKET_BUFF_SIZE);
         xQueueReceive(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
         if (no_ack_mode) {
             ch = '$';

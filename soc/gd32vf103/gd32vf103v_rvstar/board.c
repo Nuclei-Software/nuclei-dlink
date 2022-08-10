@@ -30,18 +30,8 @@ void UART4_IRQHandler(void)
             ch = usart_data_receive(UART4);
             xQueueSendFromISR(gdb_rxdata_xQueue, &ch, pdFALSE);
         }
+        usart_interrupt_flag_clear(UART4, USART_INT_FLAG_RBNE);
     }
-    usart_interrupt_flag_clear(UART4, USART_INT_FLAG_PERR);
-    usart_interrupt_flag_clear(UART4, USART_INT_FLAG_TBE);
-    usart_interrupt_flag_clear(UART4, USART_INT_FLAG_TC);
-    usart_interrupt_flag_clear(UART4, USART_INT_FLAG_RBNE);
-    usart_interrupt_flag_clear(UART4, USART_INT_FLAG_RBNE_ORERR);
-    usart_interrupt_flag_clear(UART4, USART_INT_FLAG_IDLE);
-    usart_interrupt_flag_clear(UART4, USART_INT_FLAG_LBD);
-    usart_interrupt_flag_clear(UART4, USART_INT_FLAG_CTS);
-    usart_interrupt_flag_clear(UART4, USART_INT_FLAG_ERR_ORERR);
-    usart_interrupt_flag_clear(UART4, USART_INT_FLAG_ERR_NERR);
-    usart_interrupt_flag_clear(UART4, USART_INT_FLAG_ERR_FERR);
 }
 
 void rvl_transport_init(void)
@@ -81,7 +71,7 @@ void rvl_transport_init(void)
                             "transport_tx",           /* Text name for the task. */
                             256,                      /* Stack size in words, not bytes. */
                             NULL,                     /* Parameter passed into the task. */
-                            4,                        /* Priority at which the task is created. */
+                            3,                        /* Priority at which the task is created. */
                             &transport_tx_xHandle);   /* Used to pass out the created task's handle. */
     if(xReturned != pdPASS) {
         /* error msg */

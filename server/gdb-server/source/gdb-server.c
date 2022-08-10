@@ -122,31 +122,22 @@ void gdb_server_init(void)
 void gdb_server_poll(void)
 {
     char c;
+    BaseType_t xReturned;
     size_t ret, len;
 
     for (;;) {
         rsp.len = 0;
+        memset(rsp.data, 0x00, GDB_PACKET_BUFF_SIZE);
         if (self.gdb_connected && self.target_running) {
-            ret = gdb_resp_buf_getchar(&c);
-            if (ret > 0) {
-                rsp.data[0] = 'O';
-                len = 0;
-                do {
-                    bin_to_hex((uint8_t*)&c, &rsp.data[1 + len * 2], 1);
-                    len++;
-                    ret = gdb_resp_buf_getchar(&c);
-                } while (ret > 0);
-                //TODO:send ringbuffer
-            }
-
-            xQueueReceive(gdb_cmd_packet_xQueue, &cmd, portMAX_DELAY);
-            if (*cmd.data == '\x03' && cmd.len == 1) {
-                gdb_server_cmd_ctrl_c();
-                gdb_server_target_run(false);
-                strncpy(rsp.data, "T02", GDB_PACKET_BUFF_SIZE);
-                rsp.len = 3;
-                // rsp.len = strlen(rsp.data);
-                xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+            xReturned = xQueueReceive(gdb_cmd_packet_xQueue, &cmd, (100 / portTICK_PERIOD_MS));
+            if (xReturned == pdPASS) {
+                if (*cmd.data == '\x03' && cmd.len == 1) {
+                    gdb_server_cmd_ctrl_c();
+                    gdb_server_target_run(false);
+                    strncpy(rsp.data, "T02", GDB_PACKET_BUFF_SIZE);
+                    rsp.len = 3;
+                    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+                }
             }
 
             if (self.target_running) {
@@ -174,44 +165,46 @@ void gdb_server_poll(void)
                 }
             }
         } else {
-            xQueueReceive(gdb_cmd_packet_xQueue, &cmd, portMAX_DELAY);
-            c = *cmd.data;
-            if (c == 'q') {
-                gdb_server_cmd_q();
-            } else if (c == 'Q') {
-                gdb_server_cmd_Q();
-            } else if (c == 'H') {
-                gdb_server_cmd_H();
-            } else if (c == '?') {
-                gdb_server_cmd_question_mark();
-            } else if (c == 'g') {
-                gdb_server_cmd_g();
-            } else if (c == 'G') {
-                gdb_server_cmd_G();
-            } else if (c == 'k') {
-                gdb_server_cmd_k();
-            } else if (c == 'c') {
-                gdb_server_cmd_c();
-            } else if (c == 'm') {
-                gdb_server_cmd_m();
-            } else if (c == 'M') {
-                gdb_server_cmd_M();
-            } else if (c == 'X') {
-                gdb_server_cmd_X();
-            } else if (c == 'p') {
-                gdb_server_cmd_p();
-            } else if (c == 'P') {
-                gdb_server_cmd_P();
-            } else if (c == 's') {
-                gdb_server_cmd_s();
-            } else if (c == 'z') {
-                gdb_server_cmd_z();
-            } else if (c == 'Z') {
-                gdb_server_cmd_Z();
-            } else if (c == 'v') {
-                gdb_server_cmd_v();
-            } else {
-                gdb_server_reply_empty();
+            xReturned = xQueueReceive(gdb_cmd_packet_xQueue, &cmd, portMAX_DELAY);
+            if (xReturned == pdPASS) {
+                c = *cmd.data;
+                if (c == 'q') {
+                    gdb_server_cmd_q();
+                } else if (c == 'Q') {
+                    gdb_server_cmd_Q();
+                } else if (c == 'H') {
+                    gdb_server_cmd_H();
+                } else if (c == '?') {
+                    gdb_server_cmd_question_mark();
+                } else if (c == 'g') {
+                    gdb_server_cmd_g();
+                } else if (c == 'G') {
+                    gdb_server_cmd_G();
+                } else if (c == 'k') {
+                    gdb_server_cmd_k();
+                } else if (c == 'c') {
+                    gdb_server_cmd_c();
+                } else if (c == 'm') {
+                    gdb_server_cmd_m();
+                } else if (c == 'M') {
+                    gdb_server_cmd_M();
+                } else if (c == 'X') {
+                    gdb_server_cmd_X();
+                } else if (c == 'p') {
+                    gdb_server_cmd_p();
+                } else if (c == 'P') {
+                    gdb_server_cmd_P();
+                } else if (c == 's') {
+                    gdb_server_cmd_s();
+                } else if (c == 'z') {
+                    gdb_server_cmd_z();
+                } else if (c == 'Z') {
+                    gdb_server_cmd_Z();
+                } else if (c == 'v') {
+                    gdb_server_cmd_v();
+                } else {
+                    gdb_server_reply_empty();
+                }
             }
         }
     }
@@ -257,7 +250,6 @@ void gdb_server_cmd_qSupported(void)
     gdb_set_no_ack_mode(false);
     strncpy(rsp.data, qSupported_res, GDB_PACKET_BUFF_SIZE);
     rsp.len = strlen(qSupported_res);
-    // rsp.len = strlen(rsp.data);
     xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
     gdb_server_connected();
 }
@@ -291,7 +283,6 @@ static void gdb_server_cmd_qxfer_features_read_target_xml(void)
     target_xml_str = rvl_target_get_target_xml();
     strncpy(&rsp.data[1], &target_xml_str[read_addr], read_len);
     rsp.len = read_len + 1;
-    // rsp.len = strlen(rsp.data);
     xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 
@@ -316,7 +307,6 @@ static void gdb_server_cmd_qxfer_memory_map_read(void)
             "</memory-map>");
 
     rsp.len = res_len;
-    // rsp.len = strlen(rsp.data);
     xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 #if 0
     size_t memory_map_len;
@@ -355,7 +345,6 @@ static void gdb_server_cmd_qxfer_memory_map_read(void)
             "</memory-map>");
 
     rsp.len = res_len;
-    // rsp.len = strlen(rsp.data);
     xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 #endif
 }
@@ -389,13 +378,11 @@ void gdb_server_cmd_qRcmd(void)
         rsp.data[0] = 'O';
         bin_to_hex(self.mem_buffer, &rsp.data[1], len);
         rsp.len = len * 2 + 1;
-        // rsp.len = strlen(rsp.data);
         xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
         gdb_server_reply_ok();
     } else {
         bin_to_hex((uint8_t*)unspported_monitor_command, rsp.data, sizeof(unspported_monitor_command) - 1);
         rsp.len = (sizeof(unspported_monitor_command) - 1) * 2;
-        // rsp.len = strlen(rsp.data);
         xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
     }
 }
@@ -457,7 +444,6 @@ void gdb_server_cmd_question_mark(void)
 {
     strncpy(rsp.data, "S02", GDB_PACKET_BUFF_SIZE);
     rsp.len = 3;
-    // rsp.len = strlen(rsp.data);
     xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 
@@ -476,7 +462,6 @@ void gdb_server_cmd_g(void)
         word_to_hex_le(self.regs[i], &rsp.data[i * (RVL_TARGET_CONFIG_REG_WIDTH / 8 * 2)]);
     }
     rsp.len = RVL_TARGET_CONFIG_REG_WIDTH / 8 * 2 * RVL_TARGET_CONFIG_REG_NUM;
-    // rsp.len = strlen(rsp.data);
     xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 
@@ -512,7 +497,6 @@ void gdb_server_cmd_p(void)
     word_to_hex_le(self.reg_tmp, &rsp.data[0]);
 
     rsp.len = RVL_TARGET_CONFIG_REG_WIDTH / 8 * 2;
-    // rsp.len = strlen(rsp.data);
     xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 
@@ -562,7 +546,6 @@ void gdb_server_cmd_m(void)
 
     bin_to_hex(self.mem_buffer, rsp.data, self.mem_len);
     rsp.len = self.mem_len * 2;
-    // rsp.len = strlen(rsp.data);
     xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 
@@ -628,7 +611,6 @@ void gdb_server_cmd_X(void)
 void gdb_server_cmd_k(void)
 {
     gdb_server_reply_ok();
-
     gdb_server_disconnected();
 }
 
@@ -826,7 +808,6 @@ static void gdb_server_reply_ok(void)
 {
     strncpy(rsp.data, "OK", GDB_PACKET_BUFF_SIZE);
     rsp.len = 2;
-    // rsp.len = strlen(rsp.data);
     xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 

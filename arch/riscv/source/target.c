@@ -16,6 +16,13 @@
  * See the Mulan PSL v1 for more details.
  */
 
+/* Kernel includes. */
+#include "FreeRTOS.h" /* Must come first. */
+#include "queue.h"    /* RTOS queue related API prototypes. */
+#include "semphr.h"   /* Semaphore related API prototypes. */
+#include "task.h"     /* RTOS task related API prototypes. */
+#include "timers.h"   /* Software timer related API prototypes. */
+
 /* own header file include */
 #include "target.h"
 
@@ -537,7 +544,7 @@ void rvl_target_reset(void)
 
     rvl_jtag_srst_put(0);
 
-    delay_1ms(100);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
 
     rvl_jtag_srst_put(1);
 
@@ -548,8 +555,7 @@ void rvl_target_reset(void)
     rvl_dmi_write(RISCV_DM_CONTROL, (rvl_dmi_reg_t)(self.dm.dmcontrol.reg), &self.dmi_result);
 
     for(self.i = 0; self.i < 100; self.i++) {
-        delay_1ms(10);
-
+        vTaskDelay(10 / portTICK_PERIOD_MS);
         rvl_dmi_read(RISCV_DM_STATUS, (rvl_dmi_reg_t*)(&self.dm.dmstatus.reg), &self.dmi_result);
         if (self.dm.dmstatus.allhalted) {
             break;
