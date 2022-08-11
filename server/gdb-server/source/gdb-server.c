@@ -291,13 +291,25 @@ static void gdb_server_cmd_qxfer_features_read_target_xml(void)
  */
 static void gdb_server_cmd_qxfer_memory_map_read(void)
 {
+#if 1
     size_t res_len;
 
     res_len = 0;
     res_len += snprintf(&rsp.data[0], GDB_PACKET_BUFF_SIZE, "l<memory-map>");
 #if RVL_TARGET_CONFIG_ADDR_WIDTH == 32
+    // ram
     res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
-            "<memory type=\"%s\" start=\"0x%x\" length=\"0x%x\"", "ram", 0x00, 0x00);
+            "<memory type=\"%s\" start=\"0x%x\" length=\"0x%x\"", "ram", 0x00, 0x8000000);
+    res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
+            "/>");
+    // flash
+    res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
+            "<memory type=\"%s\" start=\"0x%x\" length=\"0x%x\"", "flash", 0x8000000, 0x20000);
+    res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
+                    "><property name=\"blocksize\">0x%x</property></memory>", 0x400);
+    // ram
+    res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
+            "<memory type=\"%s\" start=\"0x%x\" length=\"0x%x\"", "ram", 0x8020000, 0xF7FE0000);
     res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
             "/>");
 #else
@@ -308,7 +320,7 @@ static void gdb_server_cmd_qxfer_memory_map_read(void)
 
     rsp.len = res_len;
     xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
-#if 0
+#else
     size_t memory_map_len;
     const rvl_target_memory_t* memory_map;
     size_t res_len;
