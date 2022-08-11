@@ -1,45 +1,66 @@
-image: mhoiting/platformio-cli-gd32v-docker:v0.2.0
-
-stages:
-    - build
-    - publish
+variables:
+  NUCLEI_SDK: git@gito:software/library/nuclei-sdk.git
+  SDK_BRANCH: develop
+  IMAGE: rego.corp.nucleisys.com/software/sdkbuild
+  IMAGE_TAG: "2022.08-RC1"
 
 default:
-    artifacts:
-        name: "firmware"
-        expire_in: 1 week
-        paths:
-            - .pio/build/**/rvlink_fw_*.elf
-            - .pio/build/**/rvlink_fw_*.bin
-            - .pio/build/**/rvlink_fw_*.hex
-        when: always
+  tags:
+    - env::docker
+    - net::outside
+  image: $IMAGE:$IMAGE_TAG
+  before_script:
+    - free -g
+    - uname -a
+    - lscpu
 
-build:gd32vf103c-start:
-    stage: build
-    script:
-        - pio --no-ansi run -e gd32vf103c-start
+stages:
+  - build
 
+prepare_sdk:
+  timeout: 4h
+  interruptible: true
+  stage: build
+  script:
+    - apt update
+    - command -v ssh-agent >/dev/null || ( apt-get update -y && apt-get install openssh-client -y )
+    - eval $(ssh-agent -s)
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    # important: need to avoid git ssh asking yes/no when clone
+    # https://serverfault.com/questions/469052/ssh-failing-from-script-working-on-command-line-git
+    - ssh-keyscan gito > ~/.ssh/known_hosts
+    - git clone -b $SDK_BRANCH $NUCLEI_SDK nuclei_sdk
+  artifacts:
+    when: always
+    name: "nsdk-job${CI_JOB_ID}"
+    paths:
+      - nuclei_sdk
+    expire_in: 1 day
 
-build:sipeed-longan-nano:
-    stage: build
-    script:
-        - pio --no-ansi run -e sipeed-longan-nano
+.build_job_template: &build_job_template_default
+  timeout: 4h
+  interruptible: true
+  stage: build
+  needs: ["prepare_sdk"]
+  variables:
+    SOC: "gd32vf103"
+    BOARD: "gd32vf103v_rvstar"
+  script:
+    - export NUCLEI_SDK_ROOT=$(readlink -f nuclei_sdk)
+    - make SOC=${SOC} BOARD=${BOARD} -j dasm
+  artifacts:
+    when: always
+    name: "dlink_firmware-${BOARD}-job${CI_JOB_ID}-${CI_COMMIT_SHA::8}"
+    paths:
+      - dlink.elf
+      - dlink.hex
+    expire_in: 15 day
 
-build:sipeed-longan-nano-alt:
-    stage: build
-    script:
-        - pio --no-ansi run -e sipeed-longan-nano-alt
+build:gd32v-rvstar:
+  <<: *build_job_template_default
+  variables:
+    SOC: "gd32vf103"
+    BOARD: "gd32vf103v_rvstar"
 
-build:rvl-probe:
-    stage: build
-    script:
-        - pio --no-ansi run -e rvl-probe
-
-publish:
-    stage: publish
-    only:
-        - tags
-    except:
-        - branches
-    script:
-        - ./scripts/gitlab-publish.sh
