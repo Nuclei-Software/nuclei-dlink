@@ -1,0 +1,59 @@
+## Package Base Information
+name: app-nsdk_dlink
+owner: nuclei
+version:
+description: Nuclei Debugger Link Firmware
+type: app
+keywords:
+  - freertos
+category: freertos application
+license:
+homepage:
+
+## Package Dependency
+dependencies:
+  - name: sdk-nuclei_sdk
+    version:
+  - name: osp-nsdk_freertos
+    version:
+
+## Package Configurations
+configuration:
+  app_commonflags:
+    value: -O0
+    type: text
+    description: Application Compile Flags
+
+## Set Configuration for other packages
+setconfig:
+  - config: sysclk
+    value: hxtal_96mhz
+
+## Source Code Management
+codemanage:
+  copyfiles:
+    - path: ["arch", "helper", "server", "soc", "*.c", "*.h"]
+  incdirs:
+    - path: ["arch/riscv/include", "helper/include", "server/gdb-server/include", "soc", "soc/gd32vf103/gd32vf103v_rvstar", "./"]
+  libdirs:
+  ldlibs:
+    - libs:
+
+## Build Configuration
+buildconfig:
+  - type: gcc
+    common_flags: # flags need to be combined together across all packages
+      - flags: ${app_commonflags}
+    ldflags:
+    cflags:
+    asmflags:
+    cxxflags:
+    prebuild_steps: # could be override by app/bsp type
+      command:
+      description:
+    postbuild_steps: # could be override by app/bsp type
+      command:
+      description:
+    common_defines:
+      - defines: RVL_DEBUG_EN
+      - defines: RVL_TARGET_RISCV_DEBUG_SPEC_V0P13
