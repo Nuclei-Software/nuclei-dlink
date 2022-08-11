@@ -1,28 +1,29 @@
-#ifndef __RV_LINK_DETAILS_ASSERT_H__
-#define __RV_LINK_DETAILS_ASSERT_H__
-/**
- * Copyright (c) 2019 zoomdy@163.com
- * Copyright (c) 2020, Micha Hoiting <micha.hoiting@gmail.com>
+/*
+ * Copyright (c) 2019 Nuclei Limited. All rights reserved.
  *
- * \file  rv-link/details/assert.h
- * \brief Support for assertion checks.
+ * SPDX-License-Identifier: Apache-2.0
  *
- * RV-LINK is licensed under the Mulan PSL v1.
- * You can use this software according to the terms and conditions of the Mulan PSL v1.
- * You may obtain a copy of Mulan PSL v1 at:
- *     http://license.coscl.org.cn/MulanPSL
+ * Licensed under the Apache License, Version 2.0 (the License); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR
- * PURPOSE.
- * See the Mulan PSL v1 for more details.
+ * www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
-/* system library header file includes */
-#include <stddef.h>
-#include <stdint.h>
+#ifndef __ASSERT_H__
+#define __ASSERT_H__
 
-void rvl_assert_handler(const char *cond, const char *func, uint32_t line);
+#ifdef __cplusplus
+ extern "C" {
+#endif
+
+#include <stdint.h>
 
 #ifdef RVL_ASSERT_EN
 #define rvl_assert(cond)                                                \
@@ -35,4 +36,10 @@ do {                                                                    \
 #define rvl_assert(cond) ((void)0)
 #endif
 
-#endif /* __RV_LINK_DETAILS_ASSERT_H__ */
+void rvl_assert_handler(const char *cond, const char *func, uint32_t line);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __ASSERT_H__ */

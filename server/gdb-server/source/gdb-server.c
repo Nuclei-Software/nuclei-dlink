@@ -1,39 +1,24 @@
-/**
- * Copyright (c) 2019 zoomdy@163.com
- * Copyright (c) 2020, Micha Hoiting <micha.hoiting@gmail.com>
+/*
+ * Copyright (c) 2019 Nuclei Limited. All rights reserved.
  *
- * \file  rv-link/gdb-server/gdb-server.c
- * \brief Implementation of the GDB server.
+ * SPDX-License-Identifier: Apache-2.0
  *
- * RV-LINK is licensed under the Mulan PSL v1.
- * You can use this software according to the terms and conditions of the Mulan PSL v1.
- * You may obtain a copy of Mulan PSL v1 at:
- *     http://license.coscl.org.cn/MulanPSL
- * 
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR
- * PURPOSE.
- * See the Mulan PSL v1 for more details.
+ * Licensed under the Apache License, Version 2.0 (the License); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
-/* own header file include */
-#include "gdb-server.h"
-
-/* system library header file includes */
-#include <stddef.h>
-#include <stdio.h>
-#include <string.h>
-
-/* other library header file includes */
-#include "riscv_encoding.h"
-
-/* other project header file includes */
-#include "target-config.h"
-#include "target.h"
-
-/* own component header file includes */
+#include "config.h"
 #include "gdb-packet.h"
-#include "ringbuffer.h"
+#include "target.h"
 
 static gdb_packet_t cmd = {0};
 static gdb_packet_t rsp = {0};
@@ -802,15 +787,6 @@ void gdb_server_cmd_vMustReplyEmpty(void)
     if (self.target_error == rvl_target_error_none) {
         gdb_server_reply_empty();
     } else {
-        len = 0;
-        while (gdb_resp_buf_getchar(&c)) {
-            rsp.data[len] = c;
-            len++;
-        }
-        rsp.len = len;
-        // rsp.len = strlen(rsp.data);
-        xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
-
         gdb_server_disconnected();
     }
 }
@@ -841,10 +817,6 @@ static void gdb_server_reply_err(int err)
 
 void gdb_server_connected(void)
 {
-    char c;
-
-    while (gdb_resp_buf_getchar(&c)) {};
-
     self.gdb_connected = true;
     gdb_server_target_run(false);
 
@@ -859,19 +831,19 @@ void gdb_server_connected(void)
     if (self.target_error != rvl_target_error_none) {
         switch(self.target_error) {
         case rvl_target_error_line:
-            gdb_resp_buf_puts("\nRV-LINK ERROR: the target is not connected!\n");
+            //gdb_resp_buf_puts("\nRV-LINK ERROR: the target is not connected!\n");
             break;
         case rvl_target_error_compat:
-            gdb_resp_buf_puts("\nRV-LINK ERROR: the target is not supported, upgrade RV-LINK firmware!\n");
+            //gdb_resp_buf_puts("\nRV-LINK ERROR: the target is not supported, upgrade RV-LINK firmware!\n");
             break;
         case rvl_target_error_debug_module:
-            gdb_resp_buf_puts("\nRV-LINK ERROR: something wrong with debug module!\n");
+            //gdb_resp_buf_puts("\nRV-LINK ERROR: something wrong with debug module!\n");
             break;
         case rvl_target_error_protected:
-            gdb_resp_buf_puts("\nRV-LINK ERROR: the target under protected! disable protection then try again.\n");
+            //gdb_resp_buf_puts("\nRV-LINK ERROR: the target under protected! disable protection then try again.\n");
             break;
         default:
-            gdb_resp_buf_puts("\nRV-LINK ERROR: unknown error!\n");
+            //gdb_resp_buf_puts("\nRV-LINK ERROR: unknown error!\n");
             break;
         }
     }

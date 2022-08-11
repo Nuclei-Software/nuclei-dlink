@@ -1,20 +1,24 @@
 /*
-Copyright (c) 2019 zoomdy@163.com
-RV-LINK is licensed under the Mulan PSL v1.
-You can use this software according to the terms and conditions of the Mulan PSL v1.
-You may obtain a copy of Mulan PSL v1 at:
-    http://license.coscl.org.cn/MulanPSL
-THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR
-PURPOSE.
-See the Mulan PSL v1 for more details.
+ * Copyright (c) 2019 Nuclei Limited. All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the License); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
-#include "assert.h"
-#include "dmi.h"
+#include "config.h"
 #include "dtm.h"
 #include "tap.h"
-#include "target-config.h"
 
 typedef struct rvl_dtm_s {
     uint8_t abits;
@@ -35,12 +39,10 @@ void rvl_dtm_init(void)
     rvl_tap_go_idle();
 }
 
-
 void rvl_dtm_fini(void)
 {
     rvl_tap_fini();
 }
-
 
 void rvl_dtm_idcode(rvl_dtm_idcode_t* idcode)
 {
@@ -55,7 +57,6 @@ void rvl_dtm_idcode(rvl_dtm_idcode_t* idcode)
 
     idcode->word = self.out[0];
 }
-
 
 void rvl_dtm_dtmcs_dmireset(void)
 {
@@ -73,12 +74,10 @@ void rvl_dtm_dtmcs_dmireset(void)
     }
 }
 
-
 void rvl_dtm_run(uint32_t ticks)
 {
     rvl_tap_run(ticks);
 }
-
 
 void rvl_dtm_dtmcs(rvl_dtm_dtmcs_t* dtmcs)
 {
@@ -93,12 +92,10 @@ void rvl_dtm_dtmcs(rvl_dtm_dtmcs_t* dtmcs)
 
     dtmcs->word = self.out[0];
 
-#if RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC == RISCV_DEBUG_SPEC_VERSION_V0P11
-    self.abits = dtmcs->loabits | (dtmcs->hiabits << 4);
-#elif RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC == RISCV_DEBUG_SPEC_VERSION_V0P13
+#ifdef RISCV_DEBUG_SPEC_VERSION_V0P13
     self.abits = dtmcs->abits;
 #else
-#error No RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC defined
+    self.abits = dtmcs->loabits | (dtmcs->hiabits << 4);
 #endif
 
     self.idle = dtmcs->idle;
@@ -108,8 +105,7 @@ void rvl_dtm_dtmcs(rvl_dtm_dtmcs_t* dtmcs)
     }
 }
 
-
-#if RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC == RISCV_DEBUG_SPEC_VERSION_V0P13
+#ifdef RISCV_DEBUG_SPEC_VERSION_V0P13
 void rvl_dtm_dtmcs_dmihardreset(void)
 {
     if (self.last_jtag_reg != RISCV_DTM_JTAG_REG_DTMCS) {
@@ -127,8 +123,6 @@ void rvl_dtm_dtmcs_dmihardreset(void)
 }
 #endif
 
-
-
 void rvl_dtm_dmi(uint32_t addr, rvl_dmi_reg_t* data, uint32_t* op)
 {
     rvl_assert(addr <= ((1 << self.abits) - 1));
@@ -141,39 +135,33 @@ void rvl_dtm_dmi(uint32_t addr, rvl_dmi_reg_t* data, uint32_t* op)
         rvl_tap_shift_ir(self.out, self.in, 5);
     }
 
-#if RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC == RISCV_DEBUG_SPEC_VERSION_V0P13
+#ifdef RISCV_DEBUG_SPEC_VERSION_V0P13
     self.in[0] = (*data << 2) | (*op & 0x3);
     self.in[1] = (*data >> 30) | (addr << 2);
     rvl_tap_shift_dr(self.out, self.in, 32 + 2 + self.abits);
-#elif RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC == RISCV_DEBUG_SPEC_VERSION_V0P11
+#else
     self.in[0] = (*data << 2) | (*op & 0x3);
     self.in[1] = ((*data >> 30) & 0xf) | (addr << 4);
     rvl_tap_shift_dr(self.out, self.in, 34 + 2 + self.abits);
-#else
-#error No RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC defined
 #endif
 
     if (self.idle) {
         rvl_tap_run(self.idle);
     }
 
-#if RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC == RISCV_DEBUG_SPEC_VERSION_V0P13
+#ifdef RISCV_DEBUG_SPEC_VERSION_V0P13
     *op = self.out[0] & 0x3;
     *data = (self.out[0] >> 2) | (self.out[1] << 30);
-#elif RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC == RISCV_DEBUG_SPEC_VERSION_V0P11
+#else
     *op = self.out[0] & 0x3;
     *data = (self.out[0] >> 2) | ((self.out[1] & 0xf) << 30);
-#else
-#error No RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC defined
 #endif
 }
-
 
 uint32_t rvl_dtm_get_dtmcs_abits(void)
 {
     return (uint32_t)self.abits;
 }
-
 
 uint32_t rvl_dtm_get_dtmcs_idle(void)
 {

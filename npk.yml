@@ -55,5 +55,3 @@ buildconfig:
       command:
       description:
     common_defines:
-      - defines: RVL_DEBUG_EN
-      - defines: RVL_TARGET_RISCV_DEBUG_SPEC_V0P13

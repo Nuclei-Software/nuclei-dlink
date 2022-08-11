@@ -1,7 +1,31 @@
-/* See LICENSE for license details. */
+/*
+ * Copyright (c) 2019 Nuclei Limited. All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the License); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-#ifndef __RV_LINK_TARGET_ARCH_RISCV_RISCV_ENCODING_H__
-#define __RV_LINK_TARGET_ARCH_RISCV_RISCV_ENCODING_H__
+#ifndef __ENCODING_H__
+#define __ENCODING_H__
+
+#ifdef __cplusplus
+ extern "C" {
+#endif
+
+#include "config.h"
+
+/* See LICENSE for license details. */
 
 #define MSTATUS_UIE         0x00000001
 #define MSTATUS_SIE         0x00000002
@@ -215,8 +239,6 @@
 #define rdtime() read_csr(time)
 #define rdcycle() read_csr(cycle)
 #define rdinstret() read_csr(instret)
-
-#endif
 
 #endif
 
@@ -1472,5 +1494,10 @@ DECLARE_CAUSE("machine_ecall", CAUSE_MACHINE_ECALL)
 DECLARE_CAUSE("fetch page fault", CAUSE_FETCH_PAGE_FAULT)
 DECLARE_CAUSE("load page fault", CAUSE_LOAD_PAGE_FAULT)
 DECLARE_CAUSE("store page fault", CAUSE_STORE_PAGE_FAULT)
+#endif
 
-#endif /* __RV_LINK_TARGET_ARCH_RISCV_RISCV_ENCODING_H__ */
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __ENCODING_H__ */

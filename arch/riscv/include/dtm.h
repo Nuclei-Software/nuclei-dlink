@@ -1,30 +1,30 @@
-#ifndef __RV_LINK_TARGET_ARCH_RISCV_DTM_H__
-#define __RV_LINK_TARGET_ARCH_RISCV_DTM_H__
-/**
- * Copyright (c) 2019 zoomdy@163.com
- * Copyright (c) 2021, Micha Hoiting <micha.hoiting@gmail.com>
+/*
+ * Copyright (c) 2019 Nuclei Limited. All rights reserved.
  *
- * \file  rv-link/target/arch/riscv/dtm.h
- * \brief Handling of the JTAG Debug Transport Module (DTM) interface.
+ * SPDX-License-Identifier: Apache-2.0
  *
- * RV-LINK is licensed under the Mulan PSL v1.
- * You can use this software according to the terms and conditions of the Mulan PSL v1.
- * You may obtain a copy of Mulan PSL v1 at:
- *     http://license.coscl.org.cn/MulanPSL
+ * Licensed under the Apache License, Version 2.0 (the License); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR
- * PURPOSE.
- * See the Mulan PSL v1 for more details.
+ * www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
-/* system library header file includes */
-#include <stdint.h>
+#ifndef __DTM_H__
+#define __DTM_H__
 
-/* other library header file includes */
+#ifdef __cplusplus
+ extern "C" {
+#endif
 
-/* own component header file includes */
-#include "target-config.h"
+#include "config.h"
+#include "dmi.h"
 
 /*
  * Debug Transport Module (DTM)
@@ -50,7 +50,7 @@ typedef union rvl_dtm_idcode_u {
     };
 } rvl_dtm_idcode_t;
 
-#if RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC == RISCV_DEBUG_SPEC_VERSION_V0P13
+#ifdef RISCV_DEBUG_SPEC_VERSION_V0P13
 typedef union rvl_dtm_dtmcs_u
 {
     uint32_t word;
@@ -65,7 +65,7 @@ typedef union rvl_dtm_dtmcs_u
         unsigned int reserved18:    14;
     };
 } rvl_dtm_dtmcs_t;
-#elif RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC == RISCV_DEBUG_SPEC_VERSION_V0P11
+#else
 typedef union rvl_dtm_dtmcs_s
 {
     uint32_t word;
@@ -80,8 +80,6 @@ typedef union rvl_dtm_dtmcs_s
         unsigned int reserved17:    15;
     };
 } rvl_dtm_dtmcs_t;
-#else
-#error No RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC defined
 #endif
 
 void rvl_dtm_init(void);
@@ -90,7 +88,7 @@ void rvl_dtm_idcode(rvl_dtm_idcode_t* idcode);
 void rvl_dtm_dtmcs(rvl_dtm_dtmcs_t* dtmcs);
 void rvl_dtm_dtmcs_dmireset(void);
 
-#if RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC == RISCV_DEBUG_SPEC_VERSION_V0P13
+#ifdef RISCV_DEBUG_SPEC_VERSION_V0P13
 void rvl_dtm_dtmcs_dmihardreset(void);
 #endif
 
@@ -99,4 +97,8 @@ void rvl_dtm_run(uint32_t ticks);
 uint32_t rvl_dtm_get_dtmcs_abits(void);
 uint32_t rvl_dtm_get_dtmcs_idle(void);
 
-#endif /* __RV_LINK_TARGET_ARCH_RISCV_DTM_H__ */
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __DTM_H__ */

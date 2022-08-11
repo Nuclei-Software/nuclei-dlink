@@ -1,20 +1,29 @@
 /*
-Copyright (c) 2019 zoomdy@163.com
-RV-LINK is licensed under the Mulan PSL v1.
-You can use this software according to the terms and conditions of the Mulan PSL v1.
-You may obtain a copy of Mulan PSL v1 at:
-    http://license.coscl.org.cn/MulanPSL
-THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR
-PURPOSE.
-See the Mulan PSL v1 for more details.
+ * Copyright (c) 2019 Nuclei Limited. All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the License); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
-#ifndef __RV_LINK_TARGET_TAP_H__
-#define __RV_LINK_TARGET_TAP_H__
+#ifndef __TAP_H__
+#define __TAP_H__
 
-#include <stddef.h>
-#include <stdint.h>
+#ifdef __cplusplus
+ extern "C" {
+#endif
+
+#include "config.h"
 
 void rvl_tap_init(void);
 void rvl_tap_fini(void);
@@ -28,4 +37,8 @@ void rvl_tap_run(uint32_t ticks);
 void rvl_tap_config(uint8_t ir_pre, uint8_t ir_post, uint8_t dr_pre, uint8_t dr_post);
 #endif /* RVL_TARGET_CONFIG_TAP_DYN */
 
-#endif /* __RV_LINK_TARGET_TAP_H__ */
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __TAP_H__ */

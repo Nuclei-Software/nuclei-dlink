@@ -1,20 +1,32 @@
-#ifndef __RV_LINK_DETAILS_DEBUG_H__
-#define __RV_LINK_DETAILS_DEBUG_H__
-/**
- * Copyright (c) 2020, Micha Hoiting <micha.hoiting@gmail.com>
+/*
+ * Copyright (c) 2019 Nuclei Limited. All rights reserved.
  *
- * \file  rv-link/details/debug.h
- * \brief Support for debug logging.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the License); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
-void rvl_debug_log(const char *fmt, ...);
-#ifdef RVL_DEBUG_EN
-#define RVL_DEBUG_LOG(message, ...)                                      \
-do {                                                                    \
-    rvl_debug_log(message);                                             \
-} while (0)
-#else
-#define RVL_DEBUG_LOG(message, ...)
+#ifndef __DEBUG_H__
+#define __DEBUG_H__
+
+#ifdef __cplusplus
+ extern "C" {
 #endif
 
-#endif /* __RV_LINK_DETAILS_DEBUG_H__ */
+#include "config.h"
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __DEBUG_H__ */

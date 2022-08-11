@@ -1,42 +1,27 @@
-/**
- * Copyright (c) 2019 zoomdy@163.com
- * Copyright (c) 2021, Micha Hoiting <micha.hoiting@gmail.com>
+/*
+ * Copyright (c) 2019 Nuclei Limited. All rights reserved.
  *
- * \file  rv-link/target/arch/riscv/target.c
- * \brief RISC-V specific implementation to the common target handling functions.
+ * SPDX-License-Identifier: Apache-2.0
  *
- * RV-LINK is licensed under the Mulan PSL v1.
- * You can use this software according to the terms and conditions of the Mulan PSL v1.
- * You may obtain a copy of Mulan PSL v1 at:
- *     http://license.coscl.org.cn/MulanPSL
+ * Licensed under the Apache License, Version 2.0 (the License); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR
- * PURPOSE.
- * See the Mulan PSL v1 for more details.
+ * www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
-/* Kernel includes. */
-#include "FreeRTOS.h" /* Must come first. */
-#include "queue.h"    /* RTOS queue related API prototypes. */
-#include "semphr.h"   /* Semaphore related API prototypes. */
-#include "task.h"     /* RTOS task related API prototypes. */
-#include "timers.h"   /* Software timer related API prototypes. */
-
-/* own header file include */
+#include "config.h"
 #include "target.h"
-
-/* other library header file includes */
-#include "nuclei_sdk_soc.h"
-/* other project header file includes */
-#include "port.h"
-
-/* own component header file includes */
-#include "target-config.h"
 #include "dm.h"
 #include "dmi.h"
 #include "dtm.h"
-#include "encoding.h"
+#include "port.h"
 
 #ifndef RVL_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM
 #define RVL_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM       4
@@ -152,16 +137,15 @@ static void riscv_write_mem(const uint8_t* mem, rvl_target_addr_t addr, size_t l
 static void riscv_parse_watchpoint_inst(uint32_t inst, uint32_t* regno, uint32_t* offset);
 
 const char* riscv_abstractcs_cmderr_str[8] = {
-        "abs:0 (none)",
-        "abs:1 (busy)",
-        "abs:2 (not supported)",
-        "abs:3 (exception)",
-        "abs:4 (halt/resume)",
-        "abs:5 (bus)",
-        "abs:6 (FIXME)",
-        "abs:7 (other)",
+    "abs:0 (none)",
+    "abs:1 (busy)",
+    "abs:2 (not supported)",
+    "abs:3 (exception)",
+    "abs:4 (halt/resume)",
+    "abs:5 (bus)",
+    "abs:6 (FIXME)",
+    "abs:7 (other)",
 };
-
 
 void riscv_target_init(void)
 {
@@ -178,11 +162,9 @@ void riscv_target_init(void)
     rvl_dmi_init();
 }
 
-
 void riscv_target_init_post(rvl_target_error_t *err)
 {
-#if RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC == RISCV_DEBUG_SPEC_VERSION_V0P13
-
+#ifdef RISCV_DEBUG_SPEC_VERSION_V0P13
     rvl_dtm_idcode(&self.idcode);
     if (self.idcode.word == 0x00000000 || self.idcode.word == 0xffffffff) {
         *err = rvl_target_error_line;
@@ -237,15 +219,11 @@ void riscv_target_init_post(rvl_target_error_t *err)
         *err = rvl_target_error_debug_module;
         return;
     }
-
-#else
-#error No RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC defined
 #endif
 
     *err = rvl_target_error_none;
     return;
 }
-
 
 void riscv_target_init_after_halted(rvl_target_error_t *err)
 {
@@ -273,7 +251,6 @@ void riscv_target_init_after_halted(rvl_target_error_t *err)
     return;
 }
 
-
 void riscv_target_fini_pre(void)
 {
     /*
@@ -285,25 +262,19 @@ void riscv_target_fini_pre(void)
     self.dcsr.ebreaku = 0;
     riscv_write_register(self.dcsr.word, CSR_DCSR);
 
-#if RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC == RISCV_DEBUG_SPEC_VERSION_V0P13
-
+#ifdef RISCV_DEBUG_SPEC_VERSION_V0P13
     /*
      * Disable debug module
      */
     self.dm.dmcontrol.reg = 0;
     rvl_dmi_write(RISCV_DM_CONTROL, (rvl_dmi_reg_t)(self.dm.dmcontrol.reg), &self.dmi_result);
-
-#else
-#error No RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC defined
 #endif
 }
-
 
 void riscv_target_fini(void)
 {
     rvl_dmi_fini();
 }
-
 
 void rvl_target_set_error(const char *str)
 {
@@ -316,13 +287,11 @@ void rvl_target_set_error(const char *str)
     self.err_msg = str;
 }
 
-
 void rvl_target_get_error(const char **str, uint32_t* pc)
 {
     *str = self.err_msg;
     *pc = self.err_pc;
 }
-
 
 void rvl_target_clr_error(void)
 {
@@ -330,12 +299,10 @@ void rvl_target_clr_error(void)
     self.err_msg = "no error";
 }
 
-
 uint32_t riscv_target_get_idcode(void)
 {
     return self.idcode.word;
 }
-
 
 void rvl_target_read_core_registers(rvl_target_reg_t *regs)
 {
@@ -460,7 +427,6 @@ void rvl_target_read_core_registers(rvl_target_reg_t *regs)
 #endif // optimize
 }
 
-
 void rvl_target_write_core_registers(const rvl_target_reg_t *regs)
 {
     for(self.i = 1; self.i < 32; self.i++) {
@@ -468,7 +434,6 @@ void rvl_target_write_core_registers(const rvl_target_reg_t *regs)
     }
     riscv_write_register(regs[32], CSR_DPC);
 }
-
 
 void rvl_target_read_register(rvl_target_reg_t *reg, int regno)
 {
@@ -488,7 +453,6 @@ void rvl_target_read_register(rvl_target_reg_t *reg, int regno)
     }
 }
 
-
 void rvl_target_write_register(rvl_target_reg_t reg, int regno)
 {
     if (regno <= 31) { // GPRs
@@ -507,7 +471,6 @@ void rvl_target_write_register(rvl_target_reg_t reg, int regno)
     }
 }
 
-
 void rvl_target_read_memory(uint8_t* mem, rvl_target_addr_t addr, size_t len)
 {
     if (((uint32_t)mem & 3) == 0 && (addr & 3) == 0 && (len & 3) == 0) {
@@ -519,7 +482,6 @@ void rvl_target_read_memory(uint8_t* mem, rvl_target_addr_t addr, size_t len)
     }
 }
 
-
 void rvl_target_write_memory(const uint8_t* mem, rvl_target_addr_t addr, size_t len)
 {
     if (((uint32_t)mem & 3) == 0 && (addr & 3) == 0 && (len & 3) == 0) {
@@ -530,7 +492,6 @@ void rvl_target_write_memory(const uint8_t* mem, rvl_target_addr_t addr, size_t 
         riscv_write_mem(mem, addr, len, RISCV_AAMSIZE_8BITS);
     }
 }
-
 
 void rvl_target_reset(void)
 {
@@ -572,7 +533,6 @@ void rvl_target_reset(void)
     rvl_dmi_write(RISCV_DM_CONTROL, (rvl_dmi_reg_t)(self.dm.dmcontrol.reg), &self.dmi_result);
 }
 
-
 void rvl_target_halt(void)
 {
     self.dm.dmcontrol.reg = 0;
@@ -580,7 +540,6 @@ void rvl_target_halt(void)
     self.dm.dmcontrol.dmactive = 1;
     rvl_dmi_write(RISCV_DM_CONTROL, (rvl_dmi_reg_t)(self.dm.dmcontrol.reg), &self.dmi_result);
 }
-
 
 void rvl_target_halt_check(rvl_target_halt_info_t* halt_info)
 {
@@ -680,7 +639,6 @@ void rvl_target_halt_check(rvl_target_halt_info_t* halt_info)
     }
 }
 
-
 void rvl_target_resume(void)
 {
     riscv_read_register(&self.dcsr.word, CSR_DCSR);
@@ -693,7 +651,6 @@ void rvl_target_resume(void)
     rvl_dmi_write(RISCV_DM_CONTROL, (rvl_dmi_reg_t)(self.dm.dmcontrol.reg), &self.dmi_result);
 }
 
-
 void rvl_target_step(void)
 {
     riscv_read_register(&self.dcsr.word, CSR_DCSR);
@@ -705,7 +662,6 @@ void rvl_target_step(void)
     self.dm.dmcontrol.dmactive = 1;
     rvl_dmi_write(RISCV_DM_CONTROL, (rvl_dmi_reg_t)(self.dm.dmcontrol.reg), &self.dmi_result);
 }
-
 
 void rvl_target_insert_breakpoint(rvl_target_breakpoint_type_t type, rvl_target_addr_t addr, int kind, int* err)
 {
@@ -799,7 +755,6 @@ void rvl_target_insert_breakpoint(rvl_target_breakpoint_type_t type, rvl_target_
     return;
 }
 
-
 void rvl_target_remove_breakpoint(rvl_target_breakpoint_type_t type,rvl_target_addr_t addr, int kind, int* err)
 {
     if (type == rvl_target_breakpoint_type_software) {
@@ -845,7 +800,6 @@ void rvl_target_remove_breakpoint(rvl_target_breakpoint_type_t type,rvl_target_a
     return;
 }
 
-
 static void riscv_read_register(rvl_target_reg_t* reg, uint32_t regno)
 {
     self.dm.command_access_register.reg = 0;
@@ -868,7 +822,6 @@ static void riscv_read_register(rvl_target_reg_t* reg, uint32_t regno)
         *reg = self.dm.data[0];
     }
 }
-
 
 static void riscv_write_register(rvl_target_reg_t reg, uint32_t regno)
 {
@@ -893,7 +846,6 @@ static void riscv_write_register(rvl_target_reg_t reg, uint32_t regno)
 
     }
 }
-
 
 static void riscv_read_mem(uint8_t* mem, rvl_target_addr_t addr, size_t len, int aamsize)
 {
@@ -995,7 +947,6 @@ static void riscv_read_mem(uint8_t* mem, rvl_target_addr_t addr, size_t len, int
 #endif
 }
 
-
 static void riscv_write_mem(const uint8_t* mem, rvl_target_addr_t addr, size_t len, int aamsize)
 {
     const uint8_t* pbyte;
@@ -1088,7 +1039,6 @@ static void riscv_write_mem(const uint8_t* mem, rvl_target_addr_t addr, size_t l
     }
 #endif
 }
-
 
 static void riscv_parse_watchpoint_inst(uint32_t inst, uint32_t* regno, uint32_t* offset)
 {

@@ -1,36 +1,22 @@
-/**
- * Copyright (c) 2019 zoomdy@163.com
- * Copyright (c) 2020, Micha Hoiting <micha.hoiting@gmail.com>
+/*
+ * Copyright (c) 2019 Nuclei Limited. All rights reserved.
  *
- * \file  rv-link/gdb-server/gdb-packet.c
- * \brief Implementation of the GDB server RSP packet handler.
+ * SPDX-License-Identifier: Apache-2.0
  *
- * RV-LINK is licensed under the Mulan PSL v1.
- * You can use this software according to the terms and conditions of the Mulan PSL v1.
- * You may obtain a copy of Mulan PSL v1 at:
- *     http://license.coscl.org.cn/MulanPSL
+ * Licensed under the Apache License, Version 2.0 (the License); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR
- * PURPOSE.
- * See the Mulan PSL v1 for more details.
+ * www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
-/* system library header file includes */
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-
-
-/* Kernel includes. */
-#include "FreeRTOS.h" /* Must come first. */
-#include "queue.h"    /* RTOS queue related API prototypes. */
-#include "semphr.h"   /* Semaphore related API prototypes. */
-#include "task.h"     /* RTOS task related API prototypes. */
-#include "timers.h"   /* Software timer related API prototypes. */
-
+#include "config.h"
 #include "gdb-packet.h"
 
 TaskHandle_t gdb_cmd_packet_xHandle = NULL;
@@ -132,12 +118,12 @@ void gdb_packet_init(void)
         /* Queue was not created and must not be used. */
     }
 
-    gdb_cmd_packet_xQueue = xQueueCreate(GDB_PACKET_NUM, sizeof(gdb_packet_t));
+    gdb_cmd_packet_xQueue = xQueueCreate(GDB_PACKET_BUFF_NUM, sizeof(gdb_packet_t));
     if (gdb_cmd_packet_xQueue == NULL) {
         /* Queue was not created and must not be used. */
     }
 
-    gdb_rsp_packet_xQueue= xQueueCreate(GDB_PACKET_NUM, sizeof(gdb_packet_t));
+    gdb_rsp_packet_xQueue= xQueueCreate(GDB_PACKET_BUFF_NUM, sizeof(gdb_packet_t));
     if (gdb_rsp_packet_xQueue == NULL) {
         /* Queue was not created and must not be used. */
     }

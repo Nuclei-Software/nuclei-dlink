@@ -3,9 +3,7 @@ RTOS = FreeRTOS
 
 NUCLEI_SDK_ROOT ?= ../nuclei-sdk
 
-COMMON_FLAGS := -O0 \
-	-DRVL_DEBUG_EN \
-	-DRVL_TARGET_RISCV_DEBUG_SPEC_V0P13
+COMMON_FLAGS := -O0
 
 SRCDIRS = . \
 		arch/riscv/source \

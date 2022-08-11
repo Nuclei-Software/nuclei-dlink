@@ -1,28 +1,29 @@
-#ifndef __RV_LINK_TARGET_ARCH_RISCV_DMI_H__
-#define __RV_LINK_TARGET_ARCH_RISCV_DMI_H__
-/**
- * Copyright (c) 2019 zoomdy@163.com
- * Copyright (c) 2021, Micha Hoiting <micha.hoiting@gmail.com>
+/*
+ * Copyright (c) 2019 Nuclei Limited. All rights reserved.
  *
- * \file  rv-link/target/arch/riscv/dmi.h
- * \brief Handling of the RISC-V Debug Module Interface (DMI) interface.
+ * SPDX-License-Identifier: Apache-2.0
  *
- * RV-LINK is licensed under the Mulan PSL v1.
- * You can use this software according to the terms and conditions of the Mulan PSL v1.
- * You may obtain a copy of Mulan PSL v1 at:
- *     http://license.coscl.org.cn/MulanPSL
+ * Licensed under the Apache License, Version 2.0 (the License); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR
- * PURPOSE.
- * See the Mulan PSL v1 for more details.
+ * www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
-/* system library header file includes */
-#include <stdint.h>
+#ifndef __DMI_H__
+#define __DMI_H__
 
-/* other library header file includes */
-#include "target-config.h"
+#ifdef __cplusplus
+ extern "C" {
+#endif
+
+#include "config.h"
 
 /*
  * Debug Module Interface (DMI)
@@ -36,12 +37,10 @@
 #define RISCV_DMI_RESULT_FAIL   2
 #define RISCV_DMI_RESULT_BUSY   3
 
-#if RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC == RISCV_DEBUG_SPEC_VERSION_V0P13
+#ifdef RISCV_DEBUG_SPEC_VERSION_V0P13
     typedef uint32_t rvl_dmi_reg_t;
-#elif RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC == RISCV_DEBUG_SPEC_VERSION_V0P11
-    typedef uint64_t rvl_dmi_reg_t;
 #else
-#error No RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC defined
+    typedef uint64_t rvl_dmi_reg_t;
 #endif
 
 void rvl_dmi_init(void);
@@ -52,4 +51,8 @@ void rvl_dmi_write(uint32_t addr, rvl_dmi_reg_t data, uint32_t *result);
 void rvl_dmi_read_vector(uint32_t start_addr, rvl_dmi_reg_t* buffer, uint32_t len, uint32_t *result);
 void rvl_dmi_write_vector(uint32_t start_addr, const rvl_dmi_reg_t* buffer, uint32_t len, uint32_t *result);
 
-#endif /* __RV_LINK_TARGET_ARCH_RISCV_DMI_H__ */
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __DMI_H__ */

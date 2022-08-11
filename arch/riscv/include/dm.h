@@ -1,26 +1,36 @@
 /*
-Copyright (c) 2019 zoomdy@163.com
-RV-LINK is licensed under the Mulan PSL v1.
-You can use this software according to the terms and conditions of the Mulan PSL v1.
-You may obtain a copy of Mulan PSL v1 at:
-    http://license.coscl.org.cn/MulanPSL
-THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR
-PURPOSE.
-See the Mulan PSL v1 for more details.
+ * Copyright (c) 2019 Nuclei Limited. All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the License); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
-#ifndef __RV_LINK_TARGET_ARCH_RISCV_DM_H__
-#define __RV_LINK_TARGET_ARCH_RISCV_DM_H__
+#ifndef __DM_H__
+#define __DM_H__
 
-#include "target-config.h"
+#ifdef __cplusplus
+ extern "C" {
+#endif
+
+#include "config.h"
 #include "dmi.h"
 
 /*
  * Debug Module (DM)
  */
 
-#if RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC == RISCV_DEBUG_SPEC_VERSION_V0P13
+#ifdef RISCV_DEBUG_SPEC_VERSION_V0P13
 
 #define RISCV_DM_DATA0          0x04 // Abstract Data 0 (data0)
 #define RISCV_DM_DATA1          0x05
@@ -293,7 +303,7 @@ typedef struct riscv_dm_s
     rvl_dmi_reg_t haltsum0;
 } riscv_dm_t;
 
-#elif RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC == RISCV_DEBUG_SPEC_VERSION_V0P11
+#else
 
 #define RISCV_DM_CONTROL        0x10 // Control (dmcontrol, at 0x10)
 #define RISCV_DM_INFO           0x11 // Info (dminfo, at 0x11)
@@ -430,11 +440,13 @@ typedef struct riscv_dm_s
     riscv_sbdata_t sbdata4;
 } riscv_dm_t;
 
-#else
-#error No RVL_TARGET_CONFIG_RISCV_DEBUG_SPEC defined
 #endif
 
 void rvl_dm_init(void);
 void rvl_dm_fini(void);
 
-#endif /* __RV_LINK_TARGET_ARCH_RISCV_DM_H__ */
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __DM_H__ */

@@ -1,20 +1,24 @@
 /*
-Copyright (c) 2019 zoomdy@163.com
-RV-LINK is licensed under the Mulan PSL v1.
-You can use this software according to the terms and conditions of the Mulan PSL v1.
-You may obtain a copy of Mulan PSL v1 at:
-    http://license.coscl.org.cn/MulanPSL
-THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR
-PURPOSE.
-See the Mulan PSL v1 for more details.
+ * Copyright (c) 2019 Nuclei Limited. All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the License); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
-#include <stdlib.h>
-#include "dmi.h"
-#include "assert.h"
-#include "dtm.h"
 #include "config.h"
+#include "dmi.h"
+#include "dtm.h"
 
 typedef struct rvl_dmi_s
 {
@@ -36,12 +40,10 @@ void rvl_dmi_init(void)
     rvl_dtm_init();
 }
 
-
 void rvl_dmi_fini(void)
 {
     rvl_dtm_fini();
 }
-
 
 void rvl_dmi_nop(void)
 {
@@ -50,7 +52,6 @@ void rvl_dmi_nop(void)
 
     rvl_dtm_dmi(0, &self.data, &self.op);
 }
-
 
 void rvl_dmi_read(uint32_t addr, rvl_dmi_reg_t* data, uint32_t *result)
 {
@@ -84,7 +85,6 @@ void rvl_dmi_read(uint32_t addr, rvl_dmi_reg_t* data, uint32_t *result)
     }
 }
 
-
 void rvl_dmi_write(uint32_t addr, rvl_dmi_reg_t data, uint32_t *result)
 {
     self.data = data;
@@ -106,7 +106,6 @@ void rvl_dmi_write(uint32_t addr, rvl_dmi_reg_t data, uint32_t *result)
         *result = self.op;
     }
 }
-
 
 void rvl_dmi_read_vector(uint32_t start_addr, rvl_dmi_reg_t* buffer, uint32_t len, uint32_t *result)
 {
@@ -132,7 +131,6 @@ void rvl_dmi_read_vector(uint32_t start_addr, rvl_dmi_reg_t* buffer, uint32_t le
 
     *result = self.op;
 }
-
 
 void rvl_dmi_write_vector(uint32_t start_addr, const rvl_dmi_reg_t* buffer, uint32_t len, uint32_t *result)
 {
