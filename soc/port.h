@@ -28,13 +28,6 @@
 
 void rvl_jtag_init(void);
 void rvl_jtag_fini(void);
-void rvl_jtag_srst_put(int srst);
-void rvl_jtag_tms_put(int tms);
-void rvl_jtag_tdi_put(int tdi);
-void rvl_jtag_tck_put(int tck);
-void rvl_jtag_tck_high_delay();
-void rvl_jtag_tck_low_delay();
-int rvl_jtag_tdo_get();
 
 void rvl_transport_init(void);
 

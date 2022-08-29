@@ -32,7 +32,7 @@ static gdb_packet_t rsp = {0};
 
 bool no_ack_mode;
 
-static uint8_t gdb_packet_checksum(const uint8_t* p, size_t len);
+static uint8_t gdb_packet_checksum(const uint8_t* p, uint32_t len);
 
 void gdb_cmd_packet_vTask(void* pvParameters)
 {
@@ -158,10 +158,10 @@ void gdb_set_no_ack_mode(bool mode)
     no_ack_mode = mode;
 }
 /*---------------------------------------------------------------------------*/
-static uint8_t gdb_packet_checksum(const uint8_t* p, size_t len)
+static uint8_t gdb_packet_checksum(const uint8_t* p, uint32_t len)
 {
     uint32_t checksum = 0;
-    size_t i;
+    uint32_t i;
 
     for (i = 0; i < len; i++) {
         checksum += p[i];

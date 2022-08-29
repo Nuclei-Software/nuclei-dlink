@@ -16,5 +16,16 @@
  * PURPOSE.
  * See the Mulan PSL v1 for more details.
  */
+#include <stdint.h>
 
-#include "config.h"
+#define RV_TAP_DR_PRE   (0)
+#define RV_TAP_DR_POST  (0)
+#define RV_TAP_IR_PRE   (0)
+#define RV_TAP_IR_POST  (0)
+
+void rv_tap_init(void);
+void rv_tap_deinit(void);
+void rv_tap_reset(uint32_t len);
+void rv_tap_idle(uint32_t len);
+void rv_tap_shift_dr(uint32_t* out, uint32_t* in, uint32_t len);
+void rv_tap_shift_ir(uint32_t* out, uint32_t* in, uint32_t len);

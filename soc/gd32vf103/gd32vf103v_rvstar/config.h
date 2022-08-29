@@ -42,13 +42,23 @@
 
 #define RVL_DEBUG_EN
 
-#define RVL_TARGET_CONFIG_REG_WIDTH         (32)
+#ifndef RV_FLEN_8
+#define RV_FLEN_8
+#endif
+
+#ifndef RV_TARGET_CONFIG_DMI_RETRIES
+#define RV_TARGET_CONFIG_DMI_RETRIES                    (6)
+#endif
+
+#ifndef RV_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM
+#define RV_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM        (4)
+#endif
+
+#ifndef RV_TARGET_CONFIG_SOFTWARE_BREAKPOINT_NUM
+#define RV_TARGET_CONFIG_SOFTWARE_BREAKPOINT_NUM        (32)
+#endif
+
 #define RVL_TARGET_CONFIG_REG_NUM           (33)
-#define RVL_TARGET_CONFIG_ADDR_WIDTH        (32)
-
-#define RISCV_DEBUG_SPEC_VERSION_V0P13
-
-#define RVL_TARGET_CONFIG_RISCV_FLEN        (8)
 
 #define GDB_DATA_CACHE_SIZE                 (1024)
 #define GDB_PACKET_BUFF_SIZE                (1024 + 8)
@@ -70,11 +80,7 @@
 #define RVL_LINK_TDO_PORT                   GPIOB
 #define RVL_LINK_TDO_PIN                    GPIO_PIN_13 /* PB13, JTDO */
 
-/* JTAG SRST pin definition */
-#define RVL_LINK_SRST_PORT                  GPIOB
-#define RVL_LINK_SRST_PIN                   GPIO_PIN_12 /* PB12, SRST */
-
-#define RVL_JTAG_TCK_FREQ_KHZ               (1000)
+#define RVL_JTAG_TCK_FREQ_KHZ               (100)
 
 #if RVL_JTAG_TCK_FREQ_KHZ >= 1000
 #define RVL_JTAG_TCK_HIGH_DELAY             (30)

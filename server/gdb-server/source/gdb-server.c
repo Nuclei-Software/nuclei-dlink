@@ -19,7 +19,7 @@
 
 #include "config.h"
 #include "gdb-packet.h"
-#include "target.h"
+#include "riscv-target.h"
 
 static gdb_packet_t cmd = {0};
 static gdb_packet_t rsp = {0};
@@ -30,16 +30,17 @@ typedef struct gdb_server_s
 {
     bool target_running;
     bool gdb_connected;
-    rvl_target_halt_info_t halt_info;
-    rvl_target_error_t target_error;
-    rvl_target_addr_t mem_addr;
-    size_t mem_len;
+    rv_target_halt_info_t halt_info;
+    rv_target_error_t target_error;
+    
+    uint32_t mem_addr;
+    uint32_t mem_len;
     uint8_t mem_buffer[GDB_PACKET_BUFF_SIZE];
-    int flash_err;
-    int i;
-    rvl_target_reg_t regs[RVL_TARGET_CONFIG_REG_NUM];
-    rvl_target_reg_t reg_tmp;
-    int reg_tmp_num;
+    uint32_t flash_err;
+    uint32_t i;
+    uint64_t regs[RVL_TARGET_CONFIG_REG_NUM];
+    uint64_t reg_tmp;
+    uint32_t reg_tmp_num;
 
     gdb_server_tid_t tid_g;
     gdb_server_tid_t tid_G;
@@ -47,14 +48,13 @@ typedef struct gdb_server_s
     gdb_server_tid_t tid_M;
     gdb_server_tid_t tid_c;
 
-    rvl_target_breakpoint_type_t breakpoint_type;
-    rvl_target_addr_t breakpoint_addr;
-    int breakpoint_kind;
-    int breakpoint_err;
+    rv_target_breakpoint_type_t breakpoint_type;
+    uint32_t breakpoint_addr;
+    uint32_t breakpoint_kind;
+    uint32_t breakpoint_err;
 } gdb_server_t;
 
 static gdb_server_t gdb_server_i;
-#define self gdb_server_i
 
 void gdb_server_connected(void);
 void gdb_server_disconnected(void);
@@ -91,17 +91,19 @@ static void gdb_server_reply_err(int err);
 static void gdb_server_cmd_qxfer_features_read_target_xml(void);
 static void gdb_server_cmd_qxfer_memory_map_read(void);
 
-static void bin_to_hex(const uint8_t *bin, char *hex, size_t nbyte);
-static void word_to_hex_le(uint32_t word, char *hex);
-static void hex_to_bin(const char *hex, uint8_t *bin, size_t nbyte);
-static void hex_to_word_le(const char *hex, uint32_t *word);
-static size_t bin_decode(const uint8_t* xbin, uint8_t* bin, size_t xbin_len);
+static void bin_to_hex(const uint8_t *bin, char *hex, uint32_t nbyte);
+static void uint32_to_hex_le(uint32_t data, char *hex);
+static void uint64_to_hex_le(uint64_t data, char *hex);
+static void hex_to_bin(const char *hex, uint8_t *bin, uint32_t nbyte);
+static void hex_to_uint32_le(const char *hex, uint32_t *data);
+static void hex_to_uint64_le(const char *hex, uint64_t *data);
+static uint32_t bin_decode(const uint8_t* xbin, uint8_t* bin, uint32_t xbin_len);
 
 
 void gdb_server_init(void)
 {
     gdb_server_target_run(false);
-    self.gdb_connected = false;
+    gdb_server_i.gdb_connected = false;
 }
 
 
@@ -109,12 +111,12 @@ void gdb_server_poll(void)
 {
     char c;
     BaseType_t xReturned;
-    size_t ret, len;
+    uint32_t ret, len;
 
     for (;;) {
         rsp.len = 0;
         memset(rsp.data, 0x00, GDB_PACKET_BUFF_SIZE);
-        if (self.gdb_connected && self.target_running) {
+        if (gdb_server_i.gdb_connected && gdb_server_i.target_running) {
             xReturned = xQueueReceive(gdb_cmd_packet_xQueue, &cmd, (100 / portTICK_PERIOD_MS));
             if (xReturned == pdPASS) {
                 if (*cmd.data == '\x03' && cmd.len == 1) {
@@ -126,22 +128,22 @@ void gdb_server_poll(void)
                 }
             }
 
-            if (self.target_running) {
-                rvl_target_halt_check(&self.halt_info);
-                if (self.halt_info.reason != rvl_target_halt_reason_running) {
+            if (gdb_server_i.target_running) {
+                rv_target_halt_check(&gdb_server_i.halt_info);
+                if (gdb_server_i.halt_info.reason != rv_target_halt_reason_running) {
                     gdb_server_target_run(false);
 
-                    if (self.halt_info.reason == rvl_target_halt_reason_other) {
+                    if (gdb_server_i.halt_info.reason == rv_target_halt_reason_other) {
                         strncpy(rsp.data, "T05", GDB_PACKET_BUFF_SIZE);
-                    } else if (self.halt_info.reason == rvl_target_halt_reason_write_watchpoint) {
-                        snprintf(rsp.data, GDB_PACKET_BUFF_SIZE, "T05watch:%x;", (unsigned int)self.halt_info.addr);
-                    } else if (self.halt_info.reason == rvl_target_halt_reason_read_watchpoint) {
-                        snprintf(rsp.data, GDB_PACKET_BUFF_SIZE, "T05rwatch:%x;", (unsigned int)self.halt_info.addr);
-                    } else if (self.halt_info.reason == rvl_target_halt_reason_access_watchpoint) {
-                        snprintf(rsp.data, GDB_PACKET_BUFF_SIZE, "T05awatch:%x;", (unsigned int)self.halt_info.addr);
-                    } else if (self.halt_info.reason == rvl_target_halt_reason_hardware_breakpoint) {
+                    } else if (gdb_server_i.halt_info.reason == rv_target_halt_reason_write_watchpoint) {
+                        snprintf(rsp.data, GDB_PACKET_BUFF_SIZE, "T05watch:%x;", (unsigned int)gdb_server_i.halt_info.addr);
+                    } else if (gdb_server_i.halt_info.reason == rv_target_halt_reason_read_watchpoint) {
+                        snprintf(rsp.data, GDB_PACKET_BUFF_SIZE, "T05rwatch:%x;", (unsigned int)gdb_server_i.halt_info.addr);
+                    } else if (gdb_server_i.halt_info.reason == rv_target_halt_reason_access_watchpoint) {
+                        snprintf(rsp.data, GDB_PACKET_BUFF_SIZE, "T05awatch:%x;", (unsigned int)gdb_server_i.halt_info.addr);
+                    } else if (gdb_server_i.halt_info.reason == rv_target_halt_reason_hardware_breakpoint) {
                         strncpy(rsp.data, "T05hwbreak:;", GDB_PACKET_BUFF_SIZE);
-                    } else if (self.halt_info.reason == rvl_target_halt_reason_software_breakpoint) {
+                    } else if (gdb_server_i.halt_info.reason == rv_target_halt_reason_software_breakpoint) {
                         strncpy(rsp.data, "T05swbreak:;", GDB_PACKET_BUFF_SIZE);
                     } else {
                         //TODO:
@@ -246,7 +248,7 @@ void gdb_server_cmd_qSupported(void)
  */
 static void gdb_server_cmd_qxfer_features_read_target_xml(void)
 {
-    size_t target_xml_len;
+    uint32_t target_xml_len;
     const char *target_xml_str;
     unsigned int read_addr;
     unsigned int read_len;
@@ -257,7 +259,7 @@ static void gdb_server_cmd_qxfer_features_read_target_xml(void)
         read_len = GDB_PACKET_BUFF_SIZE;
     }
 
-    target_xml_len = rvl_target_get_target_xml_len();
+    target_xml_len = rv_target_get_target_xml_len();
 
     if (read_len >= target_xml_len - read_addr) {
         read_len = target_xml_len - read_addr;
@@ -266,7 +268,7 @@ static void gdb_server_cmd_qxfer_features_read_target_xml(void)
         rsp.data[0] = 'm';
     }
 
-    target_xml_str = rvl_target_get_target_xml();
+    target_xml_str = rv_target_get_target_xml();
     strncpy(&rsp.data[1], &target_xml_str[read_addr], read_len);
     rsp.len = read_len + 1;
     xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
@@ -277,12 +279,11 @@ static void gdb_server_cmd_qxfer_features_read_target_xml(void)
  */
 static void gdb_server_cmd_qxfer_memory_map_read(void)
 {
-#if 1
-    size_t res_len;
+    uint32_t res_len;
 
     res_len = 0;
     res_len += snprintf(&rsp.data[0], GDB_PACKET_BUFF_SIZE, "l<memory-map>");
-#if RVL_TARGET_CONFIG_ADDR_WIDTH == 32
+    // TODO:
     // ram
     res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
             "<memory type=\"%s\" start=\"0x%x\" length=\"0x%x\"", "ram", 0x00000000, 0x20000000);
@@ -298,53 +299,11 @@ static void gdb_server_cmd_qxfer_memory_map_read(void)
             "<memory type=\"%s\" start=\"0x%x\" length=\"0x%x\"", "ram", 0x30000000, (~0) - 0x30000000 + 1);
     res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
             "/>");
-#else
-#error FIXME
-#endif
     res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
             "</memory-map>");
 
     rsp.len = res_len;
     xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
-#else
-    size_t memory_map_len;
-    const rvl_target_memory_t* memory_map;
-    size_t res_len;
-
-    /*
-     * Assuming that a packet of data can be sent out!
-     */
-
-    memory_map_len = rvl_target_get_memory_map_len();
-    memory_map = rvl_target_get_memory_map();
-
-    res_len = 0;
-    res_len += snprintf(&rsp.data[0], GDB_PACKET_BUFF_SIZE, "l<memory-map>");
-    for(self.i = 0; self.i < memory_map_len; self.i++) {
-#if RVL_TARGET_CONFIG_ADDR_WIDTH == 32
-        res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
-                "<memory type=\"%s\" start=\"0x%x\" length=\"0x%x\"",
-                memory_map[self.i].type == rvl_target_memory_type_flash ? "flash" : "ram",
-                (unsigned int)memory_map[self.i].start, (unsigned int)memory_map[self.i].length);
-
-        if (memory_map[self.i].type == rvl_target_memory_type_flash) {
-            res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
-                    "><property name=\"blocksize\">0x%x</property></memory>",
-                    (unsigned int)memory_map[self.i].blocksize);
-        } else {
-            res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
-                    "/>");
-        }
-#else
-#error FIXME
-#endif
-    }
-    res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
-            "</memory-map>");
-
-    rsp.len = res_len;
-    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
-#endif
 }
 /*
  * ‘qRcmd,command’
@@ -353,28 +312,28 @@ static void gdb_server_cmd_qxfer_memory_map_read(void)
 void gdb_server_cmd_qRcmd(void)
 {
     char c;
-    size_t ret, len;
+    uint32_t ret, len;
     const char * err_str;
     uint32_t err_pc;
     int err;
     const char unspported_monitor_command[] = ":( unsupported monitor command!\n";
 
-    self.mem_len = (cmd.len - 6) / 2;
-    hex_to_bin(&cmd.data[6], self.mem_buffer, self.mem_len);
-    self.mem_buffer[self.mem_len] = 0;
+    gdb_server_i.mem_len = (cmd.len - 6) / 2;
+    hex_to_bin(&cmd.data[6], gdb_server_i.mem_buffer, gdb_server_i.mem_len);
+    gdb_server_i.mem_buffer[gdb_server_i.mem_len] = 0;
 
-    if (strncmp((char*)self.mem_buffer, "reset", 5) == 0) {
-        rvl_target_reset();
+    if (strncmp((char*)gdb_server_i.mem_buffer, "reset", 5) == 0) {
+        rv_target_reset();
         gdb_server_reply_ok();
-    } else if (strncmp((char*)self.mem_buffer, "halt", 4) == 0) {
+    } else if (strncmp((char*)gdb_server_i.mem_buffer, "halt", 4) == 0) {
         gdb_server_reply_ok();
-    } else if (strncmp((char*)self.mem_buffer, "show error", 10) == 0) {
-        rvl_target_get_error(&err_str, &err_pc);
-        snprintf((char*)self.mem_buffer, GDB_PACKET_BUFF_SIZE,
+    } else if (strncmp((char*)gdb_server_i.mem_buffer, "show error", 10) == 0) {
+        rv_target_get_error(&err_str, &err_pc);
+        snprintf((char*)gdb_server_i.mem_buffer, GDB_PACKET_BUFF_SIZE,
                 "RV-LINK ERROR: %s, @0x%08x\r\n", err_str, (unsigned int)err_pc);
-        len = strlen((char*)self.mem_buffer);
+        len = strlen((char*)gdb_server_i.mem_buffer);
         rsp.data[0] = 'O';
-        bin_to_hex(self.mem_buffer, &rsp.data[1], len);
+        bin_to_hex(gdb_server_i.mem_buffer, &rsp.data[1], len);
         rsp.len = len * 2 + 1;
         xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
         gdb_server_reply_ok();
@@ -418,15 +377,15 @@ void gdb_server_cmd_H(void)
 
         tid = (gdb_server_tid_t)n;
         if (ch == 'g') {
-            self.tid_g = tid;
+            gdb_server_i.tid_g = tid;
         } else if (ch == 'G') {
-            self.tid_G = tid;
+            gdb_server_i.tid_G = tid;
         } else if (ch == 'm') {
-            self.tid_m = tid;
+            gdb_server_i.tid_m = tid;
         } else if (ch == 'M') {
-            self.tid_M = tid;
+            gdb_server_i.tid_M = tid;
         } else {
-            self.tid_c = tid;
+            gdb_server_i.tid_c = tid;
         }
     } else {
         gdb_server_reply_empty();
@@ -454,12 +413,26 @@ void gdb_server_cmd_g(void)
 {
     int i;
 
-    rvl_target_read_core_registers(&self.regs[0]);
+    rv_target_read_core_registers(&gdb_server_i.regs[0]);
 
     for(i = 0; i < RVL_TARGET_CONFIG_REG_NUM; i++) {
-        word_to_hex_le(self.regs[i], &rsp.data[i * (RVL_TARGET_CONFIG_REG_WIDTH / 8 * 2)]);
+        if (XLEN_RV32 == rv_target_xlen()) {
+            uint32_to_hex_le(gdb_server_i.regs[i], &rsp.data[i * (XLEN_RV32 * 2)]);
+        } else if (XLEN_RV64 == rv_target_xlen()) {
+            uint64_to_hex_le(gdb_server_i.regs[i], &rsp.data[i * (XLEN_RV64 * 2)]);
+        } else {
+            //TODO:
+            return;
+        }
     }
-    rsp.len = RVL_TARGET_CONFIG_REG_WIDTH / 8 * 2 * RVL_TARGET_CONFIG_REG_NUM;
+    if (XLEN_RV32 == rv_target_xlen()) {
+        rsp.len = XLEN_RV32 * 2 * RVL_TARGET_CONFIG_REG_NUM;
+    } else if (XLEN_RV64 == rv_target_xlen()) {
+        rsp.len = XLEN_RV64 * 2 * RVL_TARGET_CONFIG_REG_NUM;
+    } else {
+        //TODO:
+        return;
+    }
     xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 
@@ -473,10 +446,17 @@ void gdb_server_cmd_G(void)
     int i;
 
     for(i = 0; i < RVL_TARGET_CONFIG_REG_NUM; i++) {
-        hex_to_word_le(&cmd.data[i * (RVL_TARGET_CONFIG_REG_WIDTH / 8 * 2) + 1], &self.regs[i]);
+        if (XLEN_RV32 == rv_target_xlen()) {
+            hex_to_uint32_le(&cmd.data[i * (XLEN_RV32 * 2) + 1], (uint32_t*)&gdb_server_i.regs[i]);
+        } else if (XLEN_RV64 == rv_target_xlen()) {
+            hex_to_uint64_le(&cmd.data[i * (XLEN_RV64 * 2) + 1], &gdb_server_i.regs[i]);
+        }  else {
+            //TODO:
+            return;
+        }
     }
 
-    rvl_target_write_core_registers(&self.regs[0]);
+    rv_target_write_core_registers(&gdb_server_i.regs[0]);
 
     gdb_server_reply_ok();
 }
@@ -488,13 +468,19 @@ void gdb_server_cmd_G(void)
  */
 void gdb_server_cmd_p(void)
 {
-    sscanf(&cmd.data[1], "%x", &self.reg_tmp_num);
+    sscanf(&cmd.data[1], "%x", &gdb_server_i.reg_tmp_num);
 
-    rvl_target_read_register(&self.reg_tmp, self.reg_tmp_num);
-
-    word_to_hex_le(self.reg_tmp, &rsp.data[0]);
-
-    rsp.len = RVL_TARGET_CONFIG_REG_WIDTH / 8 * 2;
+    rv_target_read_register(&gdb_server_i.reg_tmp, gdb_server_i.reg_tmp_num);
+    if (XLEN_RV32 == rv_target_xlen()) {
+        uint32_to_hex_le(gdb_server_i.reg_tmp, &rsp.data[0]);
+        rsp.len = XLEN_RV32 * 2;
+    } else if (XLEN_RV64 == rv_target_xlen()) {
+        uint64_to_hex_le(gdb_server_i.reg_tmp, &rsp.data[0]);
+        rsp.len = XLEN_RV64 * 2;
+    } else {
+        //TODO:
+        return;
+    }
     xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 
@@ -508,12 +494,18 @@ void gdb_server_cmd_P(void)
 {
     const char *p;
 
-    sscanf(&cmd.data[1], "%x", &self.reg_tmp_num);
+    sscanf(&cmd.data[1], "%x", &gdb_server_i.reg_tmp_num);
     p = strchr(&cmd.data[1], '=');
     p++;
-
-    hex_to_word_le(p, &self.reg_tmp);
-    rvl_target_write_register(self.reg_tmp, self.reg_tmp_num);
+    if (XLEN_RV32 == rv_target_xlen()) {
+        hex_to_uint32_le(p, (uint32_t*)&gdb_server_i.reg_tmp);
+    } else if (XLEN_RV64 == rv_target_xlen()) {
+        hex_to_uint64_le(p, &gdb_server_i.reg_tmp);
+    } else {
+        //TODO:
+        return;
+    }
+    rv_target_write_register(&gdb_server_i.reg_tmp, gdb_server_i.reg_tmp_num);
 
     gdb_server_reply_ok();
 }
@@ -530,20 +522,16 @@ void gdb_server_cmd_m(void)
 
     p = strchr(&cmd.data[1], ',');
     p++;
-#if RVL_TARGET_CONFIG_ADDR_WIDTH == 32
-    sscanf(&cmd.data[1], "%x", (unsigned int*)(&self.mem_addr));
-#else
-#error
-#endif
-    sscanf(p, "%x", (unsigned int*)(&self.mem_len));
-    if (self.mem_len > sizeof(self.mem_buffer)) {
-        self.mem_len = sizeof(self.mem_buffer);
+    sscanf(&cmd.data[1], "%x", (unsigned int*)(&gdb_server_i.mem_addr));
+    sscanf(p, "%x", (unsigned int*)(&gdb_server_i.mem_len));
+    if (gdb_server_i.mem_len > sizeof(gdb_server_i.mem_buffer)) {
+        gdb_server_i.mem_len = sizeof(gdb_server_i.mem_buffer);
     }
 
-    rvl_target_read_memory(self.mem_buffer, self.mem_addr, self.mem_len);
+    rv_target_read_memory(gdb_server_i.mem_buffer, gdb_server_i.mem_addr, gdb_server_i.mem_len);
 
-    bin_to_hex(self.mem_buffer, rsp.data, self.mem_len);
-    rsp.len = self.mem_len * 2;
+    bin_to_hex(gdb_server_i.mem_buffer, rsp.data, gdb_server_i.mem_len);
+    rsp.len = gdb_server_i.mem_len * 2;
     xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 
@@ -556,16 +544,16 @@ void gdb_server_cmd_M(void)
 {
     const char *p;
 
-    sscanf(&cmd.data[1], "%x,%x", (unsigned int*)(&self.mem_addr), (unsigned int*)(&self.mem_len));
+    sscanf(&cmd.data[1], "%x,%x", (unsigned int*)(&gdb_server_i.mem_addr), (unsigned int*)(&gdb_server_i.mem_len));
     p = strchr(&cmd.data[1], ':');
     p++;
 
-    if (self.mem_len > sizeof(self.mem_buffer)) {
-        self.mem_len = sizeof(self.mem_buffer);
+    if (gdb_server_i.mem_len > sizeof(gdb_server_i.mem_buffer)) {
+        gdb_server_i.mem_len = sizeof(gdb_server_i.mem_buffer);
     }
 
-    hex_to_bin(p, self.mem_buffer, self.mem_len);
-    rvl_target_write_memory(self.mem_buffer, self.mem_addr, self.mem_len);
+    hex_to_bin(p, gdb_server_i.mem_buffer, gdb_server_i.mem_len);
+    rv_target_write_memory(gdb_server_i.mem_buffer, gdb_server_i.mem_addr, gdb_server_i.mem_len);
 
     gdb_server_reply_ok();
 }
@@ -578,10 +566,10 @@ void gdb_server_cmd_M(void)
 void gdb_server_cmd_X(void)
 {
     const char *p;
-    size_t length;
+    uint32_t length;
 
-    sscanf(&cmd.data[1], "%x,%x", (unsigned int*)(&self.mem_addr), (unsigned int*)(&self.mem_len));
-    if (self.mem_len == 0) {
+    sscanf(&cmd.data[1], "%x,%x", (unsigned int*)(&gdb_server_i.mem_addr), (unsigned int*)(&gdb_server_i.mem_len));
+    if (gdb_server_i.mem_len == 0) {
         gdb_server_reply_ok();
         return;
     }
@@ -589,14 +577,14 @@ void gdb_server_cmd_X(void)
     p = strchr(&cmd.data[1], ':');
     p++;
 
-    if (self.mem_len > sizeof(self.mem_buffer)) {
-        self.mem_len = sizeof(self.mem_buffer);
+    if (gdb_server_i.mem_len > sizeof(gdb_server_i.mem_buffer)) {
+        gdb_server_i.mem_len = sizeof(gdb_server_i.mem_buffer);
     }
 
-    length = cmd.len - ((size_t)p - (size_t)cmd.data);
-    bin_decode((uint8_t*)p, self.mem_buffer, length);
+    length = cmd.len - ((uint32_t)p - (uint32_t)cmd.data);
+    bin_decode((uint8_t*)p, gdb_server_i.mem_buffer, length);
 
-    rvl_target_write_memory(self.mem_buffer, self.mem_addr, self.mem_len);
+    rv_target_write_memory(gdb_server_i.mem_buffer, gdb_server_i.mem_addr, gdb_server_i.mem_len);
 
     gdb_server_reply_ok();
 }
@@ -620,7 +608,7 @@ void gdb_server_cmd_k(void)
  */
 void gdb_server_cmd_c(void)
 {
-    rvl_target_resume();
+    rv_target_resume();
     gdb_server_target_run(true);
 }
 
@@ -631,7 +619,7 @@ void gdb_server_cmd_c(void)
  */
 void gdb_server_cmd_s(void)
 {
-    rvl_target_step();
+    rv_target_step();
     gdb_server_target_run(true);
 }
 
@@ -646,16 +634,16 @@ void gdb_server_cmd_z(void)
     int type, addr, kind;
 
     sscanf(cmd.data, "z%x,%x,%x", &type, &addr, &kind);
-    self.breakpoint_type = type;
-    self.breakpoint_addr = addr;
-    self.breakpoint_kind = kind;
+    gdb_server_i.breakpoint_type = type;
+    gdb_server_i.breakpoint_addr = addr;
+    gdb_server_i.breakpoint_kind = kind;
 
-    rvl_target_remove_breakpoint(
-            self.breakpoint_type, self.breakpoint_addr, self.breakpoint_kind, &self.breakpoint_err);
-    if (self.breakpoint_err == 0) {
+    rv_target_remove_breakpoint(
+            gdb_server_i.breakpoint_type, gdb_server_i.breakpoint_addr, gdb_server_i.breakpoint_kind, &gdb_server_i.breakpoint_err);
+    if (gdb_server_i.breakpoint_err == 0) {
         gdb_server_reply_ok();
     } else {
-        gdb_server_reply_err(self.breakpoint_err);
+        gdb_server_reply_err(gdb_server_i.breakpoint_err);
     }
 }
 
@@ -670,16 +658,16 @@ void gdb_server_cmd_Z(void)
     int type, addr, kind;
 
     sscanf(cmd.data, "Z%x,%x,%x", &type, &addr, &kind);
-    self.breakpoint_type = type;
-    self.breakpoint_addr = addr;
-    self.breakpoint_kind = kind;
+    gdb_server_i.breakpoint_type = type;
+    gdb_server_i.breakpoint_addr = addr;
+    gdb_server_i.breakpoint_kind = kind;
 
-    rvl_target_insert_breakpoint(
-            self.breakpoint_type, self.breakpoint_addr, self.breakpoint_kind, &self.breakpoint_err);
-    if (self.breakpoint_err == 0) {
+    rv_target_insert_breakpoint(
+            gdb_server_i.breakpoint_type, gdb_server_i.breakpoint_addr, gdb_server_i.breakpoint_kind, &gdb_server_i.breakpoint_err);
+    if (gdb_server_i.breakpoint_err == 0) {
         gdb_server_reply_ok();
     } else {
-        gdb_server_reply_err(self.breakpoint_err);
+        gdb_server_reply_err(gdb_server_i.breakpoint_err);
     }
 }
 
@@ -689,7 +677,7 @@ void gdb_server_cmd_Z(void)
  */
 void gdb_server_cmd_ctrl_c(void)
 {
-    rvl_target_halt();
+    rv_target_halt();
 }
 
 
@@ -722,14 +710,14 @@ void gdb_server_cmd_vFlashErase(void)
     int addr, length;
 
     sscanf(&cmd.data[12], "%x,%x", &addr, &length);
-    self.mem_addr = addr;
-    self.mem_len = length;
+    gdb_server_i.mem_addr = addr;
+    gdb_server_i.mem_len = length;
 
-    rvl_target_flash_erase(self.mem_addr, self.mem_len, &self.flash_err);
-    if (self.flash_err == 0) {
+    rv_target_flash_erase(gdb_server_i.mem_addr, gdb_server_i.mem_len, &gdb_server_i.flash_err);
+    if (gdb_server_i.flash_err == 0) {
         gdb_server_reply_ok();
     } else {
-        gdb_server_reply_err(self.flash_err);
+        gdb_server_reply_err(gdb_server_i.flash_err);
         gdb_server_disconnected();
     }
 }
@@ -744,22 +732,22 @@ void gdb_server_cmd_vFlashWrite(void)
 {
     int addr;
     const char *p;
-    size_t length;
+    uint32_t length;
 
     sscanf(&cmd.data[12], "%x", &addr);
-    self.mem_addr = addr;
+    gdb_server_i.mem_addr = addr;
 
     p = strchr(&cmd.data[12], ':');
     p++;
 
-    length = cmd.len - ((size_t)p - (size_t)cmd.data);
-    self.mem_len = bin_decode((uint8_t*)p, self.mem_buffer, length);
+    length = cmd.len - ((uint32_t)p - (uint32_t)cmd.data);
+    gdb_server_i.mem_len = bin_decode((uint8_t*)p, gdb_server_i.mem_buffer, length);
 
-    rvl_target_flash_write(self.mem_addr, self.mem_len, self.mem_buffer, &self.flash_err);
-    if (self.flash_err == 0) {
+    rv_target_flash_write(gdb_server_i.mem_addr, gdb_server_i.mem_len, gdb_server_i.mem_buffer, &gdb_server_i.flash_err);
+    if (gdb_server_i.flash_err == 0) {
         gdb_server_reply_ok();
     } else {
-        gdb_server_reply_err(self.flash_err);
+        gdb_server_reply_err(gdb_server_i.flash_err);
         gdb_server_disconnected();
     }
 }
@@ -771,7 +759,7 @@ void gdb_server_cmd_vFlashWrite(void)
  */
 void gdb_server_cmd_vFlashDone(void)
 {
-    rvl_target_flash_done();
+    rv_target_flash_done();
     gdb_server_reply_ok();
 }
 
@@ -782,10 +770,10 @@ void gdb_server_cmd_vFlashDone(void)
  */
 void gdb_server_cmd_vMustReplyEmpty(void)
 {
-    size_t len;
+    uint32_t len;
     char c;
 
-    if (self.target_error == rvl_target_error_none) {
+    if (gdb_server_i.target_error == rv_target_error_none) {
         gdb_server_reply_empty();
     } else {
         gdb_server_disconnected();
@@ -818,29 +806,30 @@ static void gdb_server_reply_err(int err)
 
 void gdb_server_connected(void)
 {
-    self.gdb_connected = true;
+    gdb_server_i.target_error = rv_target_error_none;
+    gdb_server_i.gdb_connected = true;
     gdb_server_target_run(false);
 
-    riscv_target_init();
-    riscv_target_init_post(&self.target_error);
+    rv_target_init();
+    rv_target_init_post(&gdb_server_i.target_error);
 
-    if (self.target_error == rvl_target_error_none) {
-        rvl_target_halt();
-        riscv_target_init_after_halted(&self.target_error);
+    if (gdb_server_i.target_error == rv_target_error_none) {
+        rv_target_halt();
+        rv_target_init_after_halted(&gdb_server_i.target_error);
     }
 
-    if (self.target_error != rvl_target_error_none) {
-        switch(self.target_error) {
-        case rvl_target_error_line:
+    if (gdb_server_i.target_error != rv_target_error_none) {
+        switch(gdb_server_i.target_error) {
+        case rv_target_error_line:
             //gdb_resp_buf_puts("\nRV-LINK ERROR: the target is not connected!\n");
             break;
-        case rvl_target_error_compat:
+        case rv_target_error_compat:
             //gdb_resp_buf_puts("\nRV-LINK ERROR: the target is not supported, upgrade RV-LINK firmware!\n");
             break;
-        case rvl_target_error_debug_module:
+        case rv_target_error_debug_module:
             //gdb_resp_buf_puts("\nRV-LINK ERROR: something wrong with debug module!\n");
             break;
-        case rvl_target_error_protected:
+        case rv_target_error_protected:
             //gdb_resp_buf_puts("\nRV-LINK ERROR: the target under protected! disable protection then try again.\n");
             break;
         default:
@@ -853,31 +842,31 @@ void gdb_server_connected(void)
 
 void gdb_server_disconnected(void)
 {
-    if (self.target_running == false) {
-        if (self.target_error != rvl_target_error_line) {
-            rvl_target_resume();
+    if (gdb_server_i.target_running == false) {
+        if (gdb_server_i.target_error != rv_target_error_line) {
+            rv_target_resume();
             gdb_server_target_run(true);
         }
     }
 
-    if (self.target_error != rvl_target_error_line) {
-        riscv_target_fini_pre();
+    if (gdb_server_i.target_error != rv_target_error_line) {
+        rv_target_fini_pre();
     }
-    riscv_target_fini();
+    rv_target_deinit();
 
-    self.gdb_connected = false;
+    gdb_server_i.gdb_connected = false;
 }
 
 
 static void gdb_server_target_run(bool run)
 {
-    self.target_running = run;
+    gdb_server_i.target_running = run;
 }
 
 
-static void bin_to_hex(const uint8_t *bin, char *hex, size_t nbyte)
+static void bin_to_hex(const uint8_t *bin, char *hex, uint32_t nbyte)
 {
-    size_t i;
+    uint32_t i;
     uint8_t hi;
     uint8_t lo;
 
@@ -905,22 +894,37 @@ static void bin_to_hex(const uint8_t *bin, char *hex, size_t nbyte)
 }
 
 
-static void word_to_hex_le(uint32_t word, char *hex)
+static void uint32_to_hex_le(uint32_t data, char *hex)
 {
     uint8_t bytes[4];
 
-    bytes[0] = word & 0xff;
-    bytes[1] = (word >> 8) & 0xff;
-    bytes[2] = (word >> 16) & 0xff;
-    bytes[3] = (word >> 24) & 0xff;
+    bytes[0] = data & 0xff;
+    bytes[1] = (data >> 8) & 0xff;
+    bytes[2] = (data >> 16) & 0xff;
+    bytes[3] = (data >> 24) & 0xff;
 
     bin_to_hex(bytes, hex, 4);
 }
 
-
-static void hex_to_bin(const char *hex, uint8_t *bin, size_t nbyte)
+static void uint64_to_hex_le(uint64_t data, char *hex)
 {
-    size_t i;
+    uint8_t bytes[8];
+
+    bytes[0] = data & 0xff;
+    bytes[1] = (data >> 8) & 0xff;
+    bytes[2] = (data >> 16) & 0xff;
+    bytes[3] = (data >> 24) & 0xff;
+    bytes[4] = (data >> 32) & 0xff;
+    bytes[5] = (data >> 40) & 0xff;
+    bytes[6] = (data >> 48) & 0xff;
+    bytes[7] = (data >> 56) & 0xff;
+
+    bin_to_hex(bytes, hex, 8);
+}
+
+static void hex_to_bin(const char *hex, uint8_t *bin, uint32_t nbyte)
+{
+    uint32_t i;
     uint8_t hi, lo;
     for(i = 0; i < nbyte; i++) {
         if (hex[i * 2] <= '9') {
@@ -944,20 +948,39 @@ static void hex_to_bin(const char *hex, uint8_t *bin, size_t nbyte)
 }
 
 
-static void hex_to_word_le(const char *hex, uint32_t *word)
+static void hex_to_uint32_le(const char *hex, uint32_t *data)
 {
     uint8_t bytes[4];
 
     hex_to_bin(hex, bytes, 4);
 
-    *word = bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24);
+    *data = (uint32_t)bytes[0] | 
+            ((uint32_t)bytes[1] << 8) | 
+            ((uint32_t)bytes[2] << 16) | 
+            ((uint32_t)bytes[3] << 24);
+}
+
+static void hex_to_uint64_le(const char *hex, uint64_t *data)
+{
+    uint8_t bytes[8];
+
+    hex_to_bin(hex, bytes, 8);
+
+    *data = (uint64_t)bytes[0] | 
+            ((uint64_t)bytes[1] << 8) | 
+            ((uint64_t)bytes[2] << 16) | 
+            ((uint64_t)bytes[3] << 24) | 
+            ((uint64_t)bytes[4] << 32) | 
+            ((uint64_t)bytes[5] << 40) | 
+            ((uint64_t)bytes[6] << 48) | 
+            ((uint64_t)bytes[7] << 56);
 }
 
 
-static size_t bin_decode(const uint8_t* xbin, uint8_t* bin, size_t xbin_len)
+static uint32_t bin_decode(const uint8_t* xbin, uint8_t* bin, uint32_t xbin_len)
 {
-    size_t bin_len = 0;
-    size_t i;
+    uint32_t bin_len = 0;
+    uint32_t i;
     int escape_found = 0;
 
     for(i = 0; i < xbin_len; i++) {
