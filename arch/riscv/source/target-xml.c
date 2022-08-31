@@ -353,19 +353,17 @@ const char* rv_target_get_target_xml(void)
 
 uint32_t rv_target_get_target_xml_len(void)
 {
-    if (0 == rv_target_xml_len) {
-        if (XLEN_RV32 == rv_target_xlen()) {
-            if (FLEN_SINGLE == rv_target_flen()) {
-                rv_target_xml_len = strlen(target_xml_xlen4_flen4);
-            } else if (FLEN_DOUBLE == rv_target_flen()) {
-                rv_target_xml_len = strlen(target_xml_xlen4_flen8);
-            }
-        } else if (XLEN_RV64 == rv_target_xlen()) {
-            if (FLEN_SINGLE == rv_target_flen()) {
-                rv_target_xml_len = strlen(target_xml_xlen8_flen4);
-            } else if (FLEN_DOUBLE == rv_target_flen()) {
-                rv_target_xml_len = strlen(target_xml_xlen8_flen8);
-            }
+    if (XLEN_RV32 == rv_target_xlen()) {
+        if (FLEN_SINGLE == rv_target_flen()) {
+            rv_target_xml_len = strlen(target_xml_xlen4_flen4);
+        } else if (FLEN_DOUBLE == rv_target_flen()) {
+            rv_target_xml_len = strlen(target_xml_xlen4_flen8);
+        }
+    } else if (XLEN_RV64 == rv_target_xlen()) {
+        if (FLEN_SINGLE == rv_target_flen()) {
+            rv_target_xml_len = strlen(target_xml_xlen8_flen4);
+        } else if (FLEN_DOUBLE == rv_target_flen()) {
+            rv_target_xml_len = strlen(target_xml_xlen8_flen8);
         }
     }
 

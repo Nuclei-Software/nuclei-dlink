@@ -33,7 +33,7 @@ typedef struct gdb_server_s
     rv_target_halt_info_t halt_info;
     rv_target_error_t target_error;
     
-    uint32_t mem_addr;
+    uint64_t mem_addr;
     uint32_t mem_len;
     uint8_t mem_buffer[GDB_PACKET_BUFF_SIZE];
     uint32_t flash_err;
@@ -49,7 +49,7 @@ typedef struct gdb_server_s
     gdb_server_tid_t tid_c;
 
     rv_target_breakpoint_type_t breakpoint_type;
-    uint32_t breakpoint_addr;
+    uint64_t breakpoint_addr;
     uint32_t breakpoint_kind;
     uint32_t breakpoint_err;
 } gdb_server_t;
@@ -413,11 +413,11 @@ void gdb_server_cmd_g(void)
 {
     int i;
 
-    rv_target_read_core_registers(&gdb_server_i.regs[0]);
+    rv_target_read_core_registers(gdb_server_i.regs);
 
     for(i = 0; i < RVL_TARGET_CONFIG_REG_NUM; i++) {
         if (XLEN_RV32 == rv_target_xlen()) {
-            uint32_to_hex_le(gdb_server_i.regs[i], &rsp.data[i * (XLEN_RV32 * 2)]);
+            uint32_to_hex_le(*(((uint32_t*)gdb_server_i.regs) + i), &rsp.data[i * (XLEN_RV32 * 2)]);
         } else if (XLEN_RV64 == rv_target_xlen()) {
             uint64_to_hex_le(gdb_server_i.regs[i], &rsp.data[i * (XLEN_RV64 * 2)]);
         } else {
@@ -447,7 +447,7 @@ void gdb_server_cmd_G(void)
 
     for(i = 0; i < RVL_TARGET_CONFIG_REG_NUM; i++) {
         if (XLEN_RV32 == rv_target_xlen()) {
-            hex_to_uint32_le(&cmd.data[i * (XLEN_RV32 * 2) + 1], (uint32_t*)&gdb_server_i.regs[i]);
+            hex_to_uint32_le(&cmd.data[i * (XLEN_RV32 * 2) + 1], ((uint32_t*)gdb_server_i.regs) + i);
         } else if (XLEN_RV64 == rv_target_xlen()) {
             hex_to_uint64_le(&cmd.data[i * (XLEN_RV64 * 2) + 1], &gdb_server_i.regs[i]);
         }  else {
@@ -456,7 +456,7 @@ void gdb_server_cmd_G(void)
         }
     }
 
-    rv_target_write_core_registers(&gdb_server_i.regs[0]);
+    rv_target_write_core_registers(gdb_server_i.regs);
 
     gdb_server_reply_ok();
 }
@@ -472,10 +472,10 @@ void gdb_server_cmd_p(void)
 
     rv_target_read_register(&gdb_server_i.reg_tmp, gdb_server_i.reg_tmp_num);
     if (XLEN_RV32 == rv_target_xlen()) {
-        uint32_to_hex_le(gdb_server_i.reg_tmp, &rsp.data[0]);
+        uint32_to_hex_le((uint32_t)gdb_server_i.reg_tmp, rsp.data);
         rsp.len = XLEN_RV32 * 2;
     } else if (XLEN_RV64 == rv_target_xlen()) {
-        uint64_to_hex_le(gdb_server_i.reg_tmp, &rsp.data[0]);
+        uint64_to_hex_le(gdb_server_i.reg_tmp, rsp.data);
         rsp.len = XLEN_RV64 * 2;
     } else {
         //TODO:
@@ -544,7 +544,7 @@ void gdb_server_cmd_M(void)
 {
     const char *p;
 
-    sscanf(&cmd.data[1], "%x,%x", (unsigned int*)(&gdb_server_i.mem_addr), (unsigned int*)(&gdb_server_i.mem_len));
+    sscanf(&cmd.data[1], "%x,%x", &gdb_server_i.mem_addr, &gdb_server_i.mem_len);
     p = strchr(&cmd.data[1], ':');
     p++;
 
@@ -568,7 +568,7 @@ void gdb_server_cmd_X(void)
     const char *p;
     uint32_t length;
 
-    sscanf(&cmd.data[1], "%x,%x", (unsigned int*)(&gdb_server_i.mem_addr), (unsigned int*)(&gdb_server_i.mem_len));
+    sscanf(&cmd.data[1], "%x,%x", &gdb_server_i.mem_addr, &gdb_server_i.mem_len);
     if (gdb_server_i.mem_len == 0) {
         gdb_server_reply_ok();
         return;
@@ -631,12 +631,7 @@ void gdb_server_cmd_s(void)
  */
 void gdb_server_cmd_z(void)
 {
-    int type, addr, kind;
-
-    sscanf(cmd.data, "z%x,%x,%x", &type, &addr, &kind);
-    gdb_server_i.breakpoint_type = type;
-    gdb_server_i.breakpoint_addr = addr;
-    gdb_server_i.breakpoint_kind = kind;
+    sscanf(cmd.data, "z%x,%x,%x", &gdb_server_i.breakpoint_type, &gdb_server_i.breakpoint_addr, &gdb_server_i.breakpoint_kind);
 
     rv_target_remove_breakpoint(
             gdb_server_i.breakpoint_type, gdb_server_i.breakpoint_addr, gdb_server_i.breakpoint_kind, &gdb_server_i.breakpoint_err);
@@ -655,12 +650,7 @@ void gdb_server_cmd_z(void)
  */
 void gdb_server_cmd_Z(void)
 {
-    int type, addr, kind;
-
-    sscanf(cmd.data, "Z%x,%x,%x", &type, &addr, &kind);
-    gdb_server_i.breakpoint_type = type;
-    gdb_server_i.breakpoint_addr = addr;
-    gdb_server_i.breakpoint_kind = kind;
+    sscanf(cmd.data, "Z%x,%x,%x", &gdb_server_i.breakpoint_type, &gdb_server_i.breakpoint_addr, &gdb_server_i.breakpoint_kind);
 
     rv_target_insert_breakpoint(
             gdb_server_i.breakpoint_type, gdb_server_i.breakpoint_addr, gdb_server_i.breakpoint_kind, &gdb_server_i.breakpoint_err);

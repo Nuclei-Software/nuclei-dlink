@@ -251,12 +251,18 @@ static void rv_dmi_write(uint32_t addr, uint32_t in)
 
 static void rv_register_read(uint32_t *reg, uint32_t regno)
 {
+    uint32_t xlen;
+    if (regno == CSR_DCSR) {
+        xlen = XLEN_RV32;
+    } else {
+        xlen = target.xlen;
+    }
     err_flag = false;
     target.dm.command.value = 0;
-    target.dm.command.cmdtype = RV_DM_ABSTRACT_CMD_ACCESS_REG;
-    if (XLEN_RV32 == target.xlen) {
+    target.dm.command.reg.cmdtype = RV_DM_ABSTRACT_CMD_ACCESS_REG;
+    if (XLEN_RV32 == xlen) {
         target.dm.command.reg.aarsize = 2;
-    } else if (XLEN_RV64 == target.xlen) {
+    } else if (XLEN_RV64 == xlen) {
         target.dm.command.reg.aarsize = 3;
     } else {
         //TODO:
@@ -274,10 +280,10 @@ static void rv_register_read(uint32_t *reg, uint32_t regno)
         rv_dmi_write(RV_DM_ABSTRACT_CONTROL_AND_STATUS, target.dm.abstractcs.value);
         *reg = 0xffffffff;
     } else {
-        if (XLEN_RV32 == target.xlen) {
+        if (XLEN_RV32 == xlen) {
             rv_dmi_read(RV_DM_ABSTRACT_DATA0, &target.dm.data[0]);
             reg[0] = target.dm.data[0];
-        } else if (XLEN_RV64 == target.xlen) {
+        } else if (XLEN_RV64 == xlen) {
             rv_dmi_read(RV_DM_ABSTRACT_DATA0, &target.dm.data[0]);
             reg[0] = target.dm.data[0];
             rv_dmi_read(RV_DM_ABSTRACT_DATA1, &target.dm.data[1]);
@@ -291,11 +297,17 @@ static void rv_register_read(uint32_t *reg, uint32_t regno)
 
 static void rv_register_write(uint32_t *reg, uint32_t regno)
 {
+    uint32_t xlen;
+    if (regno == CSR_DCSR) {
+        xlen = XLEN_RV32;
+    } else {
+        xlen = target.xlen;
+    }
     err_flag = false;
-    if (XLEN_RV32 == target.xlen) {
+    if (XLEN_RV32 == xlen) {
         target.dm.data[0] = reg[0];
         rv_dmi_write(RV_DM_ABSTRACT_DATA0, target.dm.data[0]);
-    } else if (XLEN_RV64 == target.xlen) {
+    } else if (XLEN_RV64 == xlen) {
         target.dm.data[0] = reg[0];
         rv_dmi_write(RV_DM_ABSTRACT_DATA0, target.dm.data[0]);
         target.dm.data[1] = reg[1];
@@ -306,10 +318,10 @@ static void rv_register_write(uint32_t *reg, uint32_t regno)
     }
 
     target.dm.command.value = 0;
-    target.dm.command.cmdtype = RV_DM_ABSTRACT_CMD_ACCESS_REG;
-    if (XLEN_RV32 == target.xlen) {
+    target.dm.command.reg.cmdtype = RV_DM_ABSTRACT_CMD_ACCESS_REG;
+    if (XLEN_RV32 == xlen) {
         target.dm.command.reg.aarsize = 2;
-    } else if (XLEN_RV64 == target.xlen) {
+    } else if (XLEN_RV64 == xlen) {
         target.dm.command.reg.aarsize = 3;
     } else {
         //TODO:
@@ -329,7 +341,7 @@ static void rv_register_write(uint32_t *reg, uint32_t regno)
     }
 }
 
-static void rv_memory_read(uint8_t *mem, uint32_t addr, uint32_t len, uint32_t aamsize)
+static void rv_memory_read(uint8_t *mem, uint64_t addr, uint32_t len, uint32_t aamsize)
 {
     uint32_t i;
     uint8_t *pbyte;
@@ -338,13 +350,20 @@ static void rv_memory_read(uint8_t *mem, uint32_t addr, uint32_t len, uint32_t a
 
     err_flag = false;
 
-    target.dm.data[1] = addr;
-    rv_dmi_write(RV_DM_ABSTRACT_DATA1, target.dm.data[1]);
     for (i = 0; i < len; i++) {
+        if (XLEN_RV32 == target.xlen) {
+            target.dm.data[1] = addr + (i << aamsize);
+            rv_dmi_write(RV_DM_ABSTRACT_DATA1, target.dm.data[1]);
+        } else if (XLEN_RV64 == target.xlen) {
+            target.dm.data[2] = addr + (i << aamsize);
+            rv_dmi_write(RV_DM_ABSTRACT_DATA2, target.dm.data[2]);
+            target.dm.data[3] = addr >> 32;
+            rv_dmi_write(RV_DM_ABSTRACT_DATA3, target.dm.data[3]);
+        }
+
         target.dm.command.value = 0;
-        target.dm.command.cmdtype = RV_DM_ABSTRACT_CMD_ACCESS_MEM;
+        target.dm.command.mem.cmdtype = RV_DM_ABSTRACT_CMD_ACCESS_MEM;
         target.dm.command.mem.aamsize = aamsize;
-        target.dm.command.mem.aampostincrement = 1;
         rv_dmi_write(RV_DM_ABSTRACT_COMMAND, target.dm.command.value);
 
         rv_dmi_read(RV_DM_ABSTRACT_CONTROL_AND_STATUS, &target.dm.abstractcs.value);
@@ -378,7 +397,7 @@ static void rv_memory_read(uint8_t *mem, uint32_t addr, uint32_t len, uint32_t a
     }
 }
 
-static void rv_memory_write(const uint8_t* mem, uint32_t addr, uint32_t len, uint32_t aamsize)
+static void rv_memory_write(const uint8_t* mem, uint64_t addr, uint32_t len, uint32_t aamsize)
 {
     uint32_t i;
     const uint8_t* pbyte;
@@ -387,9 +406,17 @@ static void rv_memory_write(const uint8_t* mem, uint32_t addr, uint32_t len, uin
 
     err_flag = false;
 
-    target.dm.data[1] = addr;
-    rv_dmi_write(RV_DM_ABSTRACT_DATA1, target.dm.data[1]);
     for (i = 0; i < len; i++) {
+        if (XLEN_RV32 == target.xlen) {
+            target.dm.data[1] = addr + (i << aamsize);
+            rv_dmi_write(RV_DM_ABSTRACT_DATA1, target.dm.data[1]);
+        } else if (XLEN_RV64 == target.xlen) {
+            target.dm.data[2] = addr + (i << aamsize);
+            rv_dmi_write(RV_DM_ABSTRACT_DATA2, target.dm.data[2]);
+            target.dm.data[3] = addr >> 32;
+            rv_dmi_write(RV_DM_ABSTRACT_DATA3, target.dm.data[3]);
+        }
+
         switch(aamsize) {
             case RV_AAMSIZE_8BITS:
                 pbyte = (const uint8_t*)mem;
@@ -409,9 +436,8 @@ static void rv_memory_write(const uint8_t* mem, uint32_t addr, uint32_t len, uin
         rv_dmi_write(RV_DM_ABSTRACT_DATA0, target.dm.data[0]);
 
         target.dm.command.value = 0;
-        target.dm.command.cmdtype = RV_DM_ABSTRACT_CMD_ACCESS_MEM;
+        target.dm.command.mem.cmdtype = RV_DM_ABSTRACT_CMD_ACCESS_MEM;
         target.dm.command.mem.aamsize = aamsize;
-        target.dm.command.mem.aampostincrement = 1;
         target.dm.command.mem.write = 1;
         rv_dmi_write(RV_DM_ABSTRACT_COMMAND, target.dm.command.value);
 
@@ -592,7 +618,7 @@ void rv_target_init_post(rv_target_error_t *err)
         *err = rv_target_error_debug_module;
         return;
     }
-    if (!target.dm.dmcontrol.dmactive) {
+    if (target.dm.dmcontrol.dmactive != 1) {
         *err = rv_target_error_debug_module;
         return;
     }
@@ -680,24 +706,38 @@ void rv_target_fini_pre(void)
 
 void rv_target_read_core_registers(void *regs)
 {
-    uint32_t* temp = (uint32_t*)regs;
     uint32_t i;
 
     for(i = 1; i < 32; i++) {
-        rv_register_read(&temp[i], i + 0x1000);
+        if (XLEN_RV32 == target.xlen) {
+            rv_register_read((uint32_t*)regs + i, i + 0x1000);
+        } else if (XLEN_RV64 == target.xlen) {
+            rv_register_read((uint32_t*)((uint64_t*)regs + i), i + 0x1000);
+        }
     }
-    rv_register_read(&temp[32], CSR_DPC);
+    if (XLEN_RV32 == target.xlen) {
+        rv_register_read((uint32_t*)regs + 32, CSR_DPC);
+    } else if (XLEN_RV64 == target.xlen) {
+        rv_register_read((uint32_t*)((uint64_t*)regs + 32), CSR_DPC);
+    }
 }
 
 void rv_target_write_core_registers(void *regs)
 {
-    uint32_t* temp = (uint32_t*)regs;
     uint32_t i;
 
     for(i = 1; i < 32; i++) {
-        rv_register_write(&temp[i], i + 0x1000);
+        if (XLEN_RV32 == target.xlen) {
+            rv_register_write((uint32_t*)regs + i, i + 0x1000);
+        } else if (XLEN_RV64 == target.xlen) {
+            rv_register_write((uint32_t*)((uint64_t*)regs + i), i + 0x1000);
+        }
     }
-    rv_register_write(&temp[32], CSR_DPC);
+    if (XLEN_RV32 == target.xlen) {
+        rv_register_write((uint32_t*)regs + 32, CSR_DPC);
+    } else if (XLEN_RV64 == target.xlen) {
+        rv_register_write((uint32_t*)((uint64_t*)regs + 32), CSR_DPC);
+    }
 }
 
 void rv_target_read_register(void *reg, uint32_t regno)
@@ -735,7 +775,7 @@ void rv_target_write_register(void *reg, uint32_t regno)
     }
 }
 
-void rv_target_read_memory(uint8_t* mem, uint32_t addr, uint32_t len)
+void rv_target_read_memory(uint8_t* mem, uint64_t addr, uint32_t len)
 {
     if (((uint32_t)mem & 3) == 0 && (addr & 3) == 0 && (len & 3) == 0) {
         rv_memory_read(mem, addr, len / 4, RV_AAMSIZE_32BITS);
@@ -746,7 +786,7 @@ void rv_target_read_memory(uint8_t* mem, uint32_t addr, uint32_t len)
     }
 }
 
-void rv_target_write_memory(const uint8_t* mem, uint32_t addr, uint32_t len)
+void rv_target_write_memory(const uint8_t* mem, uint64_t addr, uint32_t len)
 {
     if (((uint32_t)mem & 3) == 0 && (addr & 3) == 0 && (len & 3) == 0) {
         rv_memory_write(mem, addr, len / 4, RV_AAMSIZE_32BITS);
@@ -778,7 +818,7 @@ void rv_target_reset(void)
     rv_dmi_write(RV_DM_DEBUG_MODULE_CONTROL, target.dm.dmcontrol.value);
 
     for(i = 0; i < 100; i++) {
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(10 / portTICK_PERIOD_MS);
         rv_dmi_read(RV_DM_DEBUG_MODULE_STATUS, &target.dm.dmstatus.value);
         if (target.dm.dmstatus.allhalted) {
             break;
@@ -902,6 +942,8 @@ void rv_target_halt_check(rv_target_halt_info_t* halt_info)
                     }
                 }
             }
+        } else {
+            halt_info->reason = rv_target_halt_reason_other;
         }
     } else {
         halt_info->reason = rv_target_halt_reason_running;
@@ -932,7 +974,7 @@ void rv_target_step(void)
     rv_dmi_write(RV_DM_DEBUG_MODULE_CONTROL, target.dm.dmcontrol.value);
 }
 
-void rv_target_insert_breakpoint(rv_target_breakpoint_type_t type, uint32_t addr, uint32_t kind, uint32_t* err)
+void rv_target_insert_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr, uint32_t kind, uint32_t* err)
 {
     uint32_t i;
     const uint16_t c_ebreak = 0x9002;
@@ -969,8 +1011,8 @@ void rv_target_insert_breakpoint(rv_target_breakpoint_type_t type, uint32_t addr
                     target.tr32.tselect = i;
                     rv_register_write(&target.tr32.tselect, CSR_TSELECT);
                     target.tr32.tdata1.value = 0;
-                    target.tr32.tdata1.type = 2;
-                    target.tr32.tdata1.dmode = 1;
+                    target.tr32.tdata1.mc.type = 2;
+                    target.tr32.tdata1.mc.dmode = 1;
                     target.tr32.tdata1.mc.action = 1;
                     target.tr32.tdata1.mc.m = 1;
                     target.tr32.tdata1.mc.s = 1;
@@ -1009,10 +1051,10 @@ void rv_target_insert_breakpoint(rv_target_breakpoint_type_t type, uint32_t addr
                     rv_register_write(&hardware_breakpoints[target.tr32.tselect].addr, CSR_TDATA2);
                 } else if (XLEN_RV64 == target.xlen) {
                     target.tr64.tselect = i;
-                    rv_register_write((uint32_t*)&target.tr32.tselect, CSR_TSELECT);
+                    rv_register_write((uint32_t*)&target.tr64.tselect, CSR_TSELECT);
                     target.tr64.tdata1.value = 0;
-                    target.tr64.tdata1.type = 2;
-                    target.tr64.tdata1.dmode = 1;
+                    target.tr64.tdata1.mc.type = 2;
+                    target.tr64.tdata1.mc.dmode = 1;
                     target.tr64.tdata1.mc.action = 1;
                     target.tr64.tdata1.mc.m = 1;
                     target.tr64.tdata1.mc.s = 1;
@@ -1065,7 +1107,7 @@ void rv_target_insert_breakpoint(rv_target_breakpoint_type_t type, uint32_t addr
     return;
 }
 
-void rv_target_remove_breakpoint(rv_target_breakpoint_type_t type, uint32_t addr, uint32_t kind, uint32_t* err)
+void rv_target_remove_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr, uint32_t kind, uint32_t* err)
 {
     uint32_t i;
 

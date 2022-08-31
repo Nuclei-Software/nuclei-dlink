@@ -134,15 +134,15 @@ void rv_target_read_core_registers(void *regs);
 void rv_target_write_core_registers(void *regs);
 void rv_target_read_register(void *reg, uint32_t regno);
 void rv_target_write_register(void *reg, uint32_t regno);
-void rv_target_read_memory(uint8_t *mem, uint32_t addr, uint32_t len);
-void rv_target_write_memory(const uint8_t *mem, uint32_t addr, uint32_t len);
+void rv_target_read_memory(uint8_t *mem, uint64_t addr, uint32_t len);
+void rv_target_write_memory(const uint8_t *mem, uint64_t addr, uint32_t len);
 void rv_target_reset(void);
 void rv_target_halt(void);
 void rv_target_halt_check(rv_target_halt_info_t *halt_info);
 void rv_target_resume(void);
 void rv_target_step(void);
-void rv_target_insert_breakpoint(rv_target_breakpoint_type_t type, uint32_t addr, uint32_t kind, uint32_t *err);
-void rv_target_remove_breakpoint(rv_target_breakpoint_type_t type, uint32_t addr, uint32_t kind, uint32_t *err);
+void rv_target_insert_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr, uint32_t kind, uint32_t *err);
+void rv_target_remove_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr, uint32_t kind, uint32_t *err);
 void rv_target_flash_erase(uint32_t addr, uint32_t len, uint32_t *err);
 void rv_target_flash_write(uint32_t addr, uint32_t len, uint8_t *buffer, uint32_t *err);
 void rv_target_flash_done(void);
@@ -291,29 +291,27 @@ typedef union {
 
 typedef union {
     rv_dm_reg_t value;
-    struct {
-        union {
-            rv_dm_reg_t control: 24;
-            struct {
-                rv_dm_reg_t regno: 16;
-                rv_dm_reg_t write: 1;
-                rv_dm_reg_t transfer: 1;
-                rv_dm_reg_t postexec: 1;
-                rv_dm_reg_t aarpostincrement: 1;
-                rv_dm_reg_t aarsize: 3;
-                rv_dm_reg_t reserved23: 1;
-            } reg;
-            struct {
-                rv_dm_reg_t reserved0: 14;
-                rv_dm_reg_t target_specific: 2;
-                rv_dm_reg_t write: 1;
-                rv_dm_reg_t reserved17: 2;
-                rv_dm_reg_t aampostincrement: 1;
-                rv_dm_reg_t aamsize: 3;
-                rv_dm_reg_t aamvirtual: 1;
-            } mem;
-        };
-        rv_dm_reg_t cmdtype: 8;
+    union {
+        struct {
+            rv_dm_reg_t regno: 16;
+            rv_dm_reg_t write: 1;
+            rv_dm_reg_t transfer: 1;
+            rv_dm_reg_t postexec: 1;
+            rv_dm_reg_t aarpostincrement: 1;
+            rv_dm_reg_t aarsize: 3;
+            rv_dm_reg_t reserved23: 1;
+            rv_dm_reg_t cmdtype: 8;
+        } reg;
+        struct {
+            rv_dm_reg_t reserved0: 14;
+            rv_dm_reg_t target_specific: 2;
+            rv_dm_reg_t write: 1;
+            rv_dm_reg_t reserved17: 2;
+            rv_dm_reg_t aampostincrement: 1;
+            rv_dm_reg_t aamsize: 3;
+            rv_dm_reg_t aamvirtual: 1;
+            rv_dm_reg_t cmdtype: 8;
+        } mem;
     };
 } rv_abstract_command_t;
 
@@ -377,71 +375,65 @@ typedef struct {
 typedef uint32_t rv_tr32_reg_t;
 typedef union {
     rv_tr32_reg_t value;
-    struct {
-        union {
-            /* data1 */
-            rv_tr32_reg_t data: (32 - 5);
-            /* mcontrol while type=2 */
-            struct {
-                rv_tr32_reg_t load: 1;
-                rv_tr32_reg_t store: 1;
-                rv_tr32_reg_t execute: 1;
-                rv_tr32_reg_t u: 1;
-                rv_tr32_reg_t s: 1;
-                rv_tr32_reg_t reserved5: 1;
-                rv_tr32_reg_t m: 1;
-                rv_tr32_reg_t match: 4;
-                rv_tr32_reg_t chain: 1;
-                rv_tr32_reg_t action: 4;
-                rv_tr32_reg_t sizelo: 2;
-                rv_tr32_reg_t timing: 1;
-                rv_tr32_reg_t select: 1;
-                rv_tr32_reg_t hit: 1;
-                rv_tr32_reg_t maskmax: 6;
-            } mc;
-            /* icount while type=2 */
-            struct {
-                rv_tr32_reg_t action: 6;
-                rv_tr32_reg_t u: 1;
-                rv_tr32_reg_t s: 1;
-                rv_tr32_reg_t reserved8: 1;
-                rv_tr32_reg_t m: 1;
-                rv_tr32_reg_t count: 14;
-                rv_tr32_reg_t hit: 1;
-                rv_tr32_reg_t reserved25: (32 - 30);
-            } ic;
-            /* itrigger while type=4 
-               etrigger while type=5 */
-            struct {
-                rv_tr32_reg_t action: 6;
-                rv_tr32_reg_t u: 1;
-                rv_tr32_reg_t s: 1;
-                rv_tr32_reg_t reserved8: 1;
-                rv_tr32_reg_t m: 1;
-                rv_tr32_reg_t reserved10: (32 - 16);
-                rv_tr32_reg_t hit: 1;
-            } iet;
-        };
-        rv_tr32_reg_t dmode: 1;
-        rv_tr32_reg_t type: 4;
+    union {
+        /* mcontrol while type=2 */
+        struct {
+            rv_tr32_reg_t load: 1;
+            rv_tr32_reg_t store: 1;
+            rv_tr32_reg_t execute: 1;
+            rv_tr32_reg_t u: 1;
+            rv_tr32_reg_t s: 1;
+            rv_tr32_reg_t reserved5: 1;
+            rv_tr32_reg_t m: 1;
+            rv_tr32_reg_t match: 4;
+            rv_tr32_reg_t chain: 1;
+            rv_tr32_reg_t action: 4;
+            rv_tr32_reg_t sizelo: 2;
+            rv_tr32_reg_t timing: 1;
+            rv_tr32_reg_t select: 1;
+            rv_tr32_reg_t hit: 1;
+            rv_tr32_reg_t maskmax: 6;
+            rv_tr32_reg_t dmode: 1;
+            rv_tr32_reg_t type: 4;
+        } mc;
+        /* icount while type=2 */
+        struct {
+            rv_tr32_reg_t action: 6;
+            rv_tr32_reg_t u: 1;
+            rv_tr32_reg_t s: 1;
+            rv_tr32_reg_t reserved8: 1;
+            rv_tr32_reg_t m: 1;
+            rv_tr32_reg_t count: 14;
+            rv_tr32_reg_t hit: 1;
+            rv_tr32_reg_t reserved25: (32 - 30);
+            rv_tr32_reg_t dmode: 1;
+            rv_tr32_reg_t type: 4;
+        } ic;
+        /* itrigger while type=4 
+            etrigger while type=5 */
+        struct {
+            rv_tr32_reg_t action: 6;
+            rv_tr32_reg_t u: 1;
+            rv_tr32_reg_t s: 1;
+            rv_tr32_reg_t reserved8: 1;
+            rv_tr32_reg_t m: 1;
+            rv_tr32_reg_t reserved10: (32 - 16);
+            rv_tr32_reg_t hit: 1;
+            rv_tr32_reg_t dmode: 1;
+            rv_tr32_reg_t type: 4;
+        } iet;
     };
 } rv_trigger32_data1_t;
 
 typedef union {
     rv_tr32_reg_t value;
+    /* textra32 while type=2/3/4/5 */
     struct {
-        union {
-            /* data3 */
-            rv_tr32_reg_t data;
-            /* textra32 while type=2/3/4/5 */
-            struct {
-                rv_tr32_reg_t sselect: 2;
-                rv_tr32_reg_t svalue: 16;
-                rv_tr32_reg_t mc_reserved18: 7;
-                rv_tr32_reg_t mselect: 1;
-                rv_tr32_reg_t mvalue: 6;
-            };
-        };
+        rv_tr32_reg_t sselect: 2;
+        rv_tr32_reg_t svalue: 16;
+        rv_tr32_reg_t mc_reserved18: 7;
+        rv_tr32_reg_t mselect: 1;
+        rv_tr32_reg_t mvalue: 6;
     };
 } rv_trigger32_data3_t;
 
@@ -481,73 +473,67 @@ typedef struct {
 typedef uint64_t rv_tr64_reg_t;
 typedef union {
     rv_tr64_reg_t value;
-    struct {
-        union {
-            /* data1 */
-            rv_tr64_reg_t data: (64 - 5);
-            /* mcontrol while type=2 */
-            struct {
-                rv_tr64_reg_t load: 1;
-                rv_tr64_reg_t store: 1;
-                rv_tr64_reg_t execute: 1;
-                rv_tr64_reg_t u: 1;
-                rv_tr64_reg_t s: 1;
-                rv_tr64_reg_t reserved5: 1;
-                rv_tr64_reg_t m: 1;
-                rv_tr64_reg_t match: 4;
-                rv_tr64_reg_t chain: 1;
-                rv_tr64_reg_t action: 4;
-                rv_tr64_reg_t sizelo: 2;
-                rv_tr64_reg_t timing: 1;
-                rv_tr64_reg_t select: 1;
-                rv_tr64_reg_t hit: 1;
-                rv_tr64_reg_t sizehi: 2;
-                rv_tr64_reg_t reserved23: (64 - 34);
-                rv_tr64_reg_t maskmax: 6;
-            } mc;
-            /* icount while type=2 */
-            struct {
-                rv_tr64_reg_t action: 6;
-                rv_tr64_reg_t u: 1;
-                rv_tr64_reg_t s: 1;
-                rv_tr64_reg_t reserved8: 1;
-                rv_tr64_reg_t m: 1;
-                rv_tr64_reg_t count: 14;
-                rv_tr64_reg_t hit: 1;
-                rv_tr64_reg_t reserved25: (64 - 30);
-            } ic;
-            /* itrigger while type=4 
-               etrigger while type=5 */
-            struct {
-                rv_tr64_reg_t action: 6;
-                rv_tr64_reg_t u: 1;
-                rv_tr64_reg_t s: 1;
-                rv_tr64_reg_t reserved8: 1;
-                rv_tr64_reg_t m: 1;
-                rv_tr64_reg_t reserved10: (64 - 16);
-                rv_tr64_reg_t hit: 1;
-            } iet;
-        };
-        rv_tr64_reg_t dmode: 1;
-        rv_tr64_reg_t type: 4;
+    union {
+        /* mcontrol while type=2 */
+        struct {
+            rv_tr64_reg_t load: 1;
+            rv_tr64_reg_t store: 1;
+            rv_tr64_reg_t execute: 1;
+            rv_tr64_reg_t u: 1;
+            rv_tr64_reg_t s: 1;
+            rv_tr64_reg_t reserved5: 1;
+            rv_tr64_reg_t m: 1;
+            rv_tr64_reg_t match: 4;
+            rv_tr64_reg_t chain: 1;
+            rv_tr64_reg_t action: 4;
+            rv_tr64_reg_t sizelo: 2;
+            rv_tr64_reg_t timing: 1;
+            rv_tr64_reg_t select: 1;
+            rv_tr64_reg_t hit: 1;
+            rv_tr64_reg_t sizehi: 2;
+            rv_tr64_reg_t reserved23: (64 - 34);
+            rv_tr64_reg_t maskmax: 6;
+            rv_tr64_reg_t dmode: 1;
+            rv_tr64_reg_t type: 4;
+        } mc;
+        /* icount while type=2 */
+        struct {
+            rv_tr64_reg_t action: 6;
+            rv_tr64_reg_t u: 1;
+            rv_tr64_reg_t s: 1;
+            rv_tr64_reg_t reserved8: 1;
+            rv_tr64_reg_t m: 1;
+            rv_tr64_reg_t count: 14;
+            rv_tr64_reg_t hit: 1;
+            rv_tr64_reg_t reserved25: (64 - 30);
+            rv_tr64_reg_t dmode: 1;
+            rv_tr64_reg_t type: 4;
+        } ic;
+        /* itrigger while type=4 
+            etrigger while type=5 */
+        struct {
+            rv_tr64_reg_t action: 6;
+            rv_tr64_reg_t u: 1;
+            rv_tr64_reg_t s: 1;
+            rv_tr64_reg_t reserved8: 1;
+            rv_tr64_reg_t m: 1;
+            rv_tr64_reg_t reserved10: (64 - 16);
+            rv_tr64_reg_t hit: 1;
+            rv_tr64_reg_t dmode: 1;
+            rv_tr64_reg_t type: 4;
+        } iet;
     };
 } rv_trigger64_data1_t;
 
 typedef union {
     rv_tr64_reg_t value;
+    /* textra64 while type=2/3/4/5 */
     struct {
-        union {
-            /* data3 */
-            rv_tr64_reg_t data;
-            /* textra64 while type=2/3/4/5 */
-            struct {
-                rv_tr64_reg_t sselect: 2;
-                rv_tr64_reg_t svalue: 34;
-                rv_tr64_reg_t mc_reserved36: 14;
-                rv_tr64_reg_t mselect: 1;
-                rv_tr64_reg_t mvalue: 13;
-            };
-        };
+        rv_tr64_reg_t sselect: 2;
+        rv_tr64_reg_t svalue: 34;
+        rv_tr64_reg_t mc_reserved36: 14;
+        rv_tr64_reg_t mselect: 1;
+        rv_tr64_reg_t mvalue: 13;
     };
 } rv_trigger64_data3_t;
 
