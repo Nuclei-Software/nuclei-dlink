@@ -44,6 +44,7 @@ static int rv_jtag_tms_get()
 
 static void rv_jtag_tdi_put(int tdi)
 {
+    gpio_init(RV_LINK_TDI_PORT, GPIO_MODE_OUT_PP, GPIO_OSPEED_10MHZ, RV_LINK_TDI_PIN);
     if (tdi) {
         GPIO_BOP(RV_LINK_TDI_PORT) = (uint32_t)RV_LINK_TDI_PIN;
     } else {
@@ -53,6 +54,7 @@ static void rv_jtag_tdi_put(int tdi)
 
 static void rv_jtag_tck_put(int tck)
 {
+    gpio_init(RV_LINK_TCK_PORT, GPIO_MODE_OUT_PP, GPIO_OSPEED_10MHZ, RV_LINK_TCK_PIN);
     if (tck) {
         GPIO_BOP(RV_LINK_TCK_PORT) = (uint32_t)RV_LINK_TCK_PIN;
     } else {
@@ -62,6 +64,7 @@ static void rv_jtag_tck_put(int tck)
 
 static int rv_jtag_tdo_get()
 {
+    gpio_init(RV_LINK_TDO_PORT, GPIO_MODE_IPU, 0, RV_LINK_TDO_PIN);
     if ((uint32_t) RESET != (GPIO_ISTAT(RV_LINK_TDO_PORT) & (RV_LINK_TDO_PIN))) {
         return 1;
     } else {

@@ -571,9 +571,6 @@ void rv_target_init(void)
     target.oscan1_mode = false;
 
     rv_tap_init();
-    if (target.oscan1_mode) {
-        rv_tap_oscan1_mode();
-    }
 }
 
 void rv_target_deinit(void)
@@ -594,6 +591,10 @@ uint32_t rv_target_flen(void)
 void rv_target_init_post(rv_target_error_t *err)
 {
     rv_tap_reset(32);
+
+    if (target.oscan1_mode) {
+        rv_tap_oscan1_mode();
+    }
 
     target.dtm.idcode.value = 0;
     target.dmi.data = target.dtm.idcode.value;
