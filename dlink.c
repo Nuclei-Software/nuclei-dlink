@@ -37,7 +37,7 @@ int main(void)
 
     gdb_packet_init();
     gdb_server_init();
-    rvl_transport_init();
+    rv_transport_init();
 
     xReturned = xTaskCreate(gdb_server_vTask,       /* Function that implements the task. */
                             "gdb_server",           /* Text name for the task. */

@@ -26,10 +26,10 @@
 
 #include "config.h"
 
-void rvl_jtag_init(void);
-void rvl_jtag_fini(void);
+void rv_jtag_init(void);
+void rv_jtag_fini(void);
 
-void rvl_transport_init(void);
+void rv_transport_init(void);
 
 #ifdef __cplusplus
 }

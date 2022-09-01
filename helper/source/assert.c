@@ -19,7 +19,7 @@
 
 #include "config.h"
 
-void rvl_assert_handler(const char *cond, const char *func, uint32_t line)
+void rv_assert_handler(const char *cond, const char *func, uint32_t line)
 {
     for(;;) {
         /* halt */

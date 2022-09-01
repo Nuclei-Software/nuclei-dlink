@@ -38,7 +38,7 @@ typedef struct gdb_server_s
     uint8_t mem_buffer[GDB_PACKET_BUFF_SIZE];
     uint32_t flash_err;
     uint32_t i;
-    uint64_t regs[RVL_TARGET_CONFIG_REG_NUM];
+    uint64_t regs[RV_TARGET_CONFIG_REG_NUM];
     uint64_t reg_tmp;
     uint32_t reg_tmp_num;
 
@@ -415,7 +415,7 @@ void gdb_server_cmd_g(void)
 
     rv_target_read_core_registers(gdb_server_i.regs);
 
-    for(i = 0; i < RVL_TARGET_CONFIG_REG_NUM; i++) {
+    for(i = 0; i < RV_TARGET_CONFIG_REG_NUM; i++) {
         if (XLEN_RV32 == rv_target_xlen()) {
             uint32_to_hex_le(*(((uint32_t*)gdb_server_i.regs) + i), &rsp.data[i * (XLEN_RV32 * 2)]);
         } else if (XLEN_RV64 == rv_target_xlen()) {
@@ -426,9 +426,9 @@ void gdb_server_cmd_g(void)
         }
     }
     if (XLEN_RV32 == rv_target_xlen()) {
-        rsp.len = XLEN_RV32 * 2 * RVL_TARGET_CONFIG_REG_NUM;
+        rsp.len = XLEN_RV32 * 2 * RV_TARGET_CONFIG_REG_NUM;
     } else if (XLEN_RV64 == rv_target_xlen()) {
-        rsp.len = XLEN_RV64 * 2 * RVL_TARGET_CONFIG_REG_NUM;
+        rsp.len = XLEN_RV64 * 2 * RV_TARGET_CONFIG_REG_NUM;
     } else {
         //TODO:
         return;
@@ -445,7 +445,7 @@ void gdb_server_cmd_G(void)
 {
     int i;
 
-    for(i = 0; i < RVL_TARGET_CONFIG_REG_NUM; i++) {
+    for(i = 0; i < RV_TARGET_CONFIG_REG_NUM; i++) {
         if (XLEN_RV32 == rv_target_xlen()) {
             hex_to_uint32_le(&cmd.data[i * (XLEN_RV32 * 2) + 1], ((uint32_t*)gdb_server_i.regs) + i);
         } else if (XLEN_RV64 == rv_target_xlen()) {

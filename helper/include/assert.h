@@ -26,18 +26,18 @@
 
 #include <stdint.h>
 
-#ifdef RVL_ASSERT_EN
-#define rvl_assert(cond)                                                \
+#ifdef RV_ASSERT_EN
+#define rv_assert(cond)                                                \
 do {                                                                    \
   if (!(cond)) {                                                        \
-    rvl_assert_handler(#cond, __FUNCTION__, __LINE__);                  \
+    rv_assert_handler(#cond, __FUNCTION__, __LINE__);                  \
   }                                                                     \
 } while(0)
 #else
-#define rvl_assert(cond) ((void)0)
+#define rv_assert(cond) ((void)0)
 #endif
 
-void rvl_assert_handler(const char *cond, const char *func, uint32_t line);
+void rv_assert_handler(const char *cond, const char *func, uint32_t line);
 
 #ifdef __cplusplus
 }

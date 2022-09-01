@@ -46,7 +46,7 @@ void UART4_IRQHandler(void)
     }
 }
 
-void rvl_transport_init(void)
+void rv_transport_init(void)
 {
     BaseType_t xReturned;
 

@@ -19,22 +19,22 @@
 
 #include "config.h"
 
-void rvl_jtag_init(void)
+void rv_jtag_init(void)
 {
     rcu_periph_clock_enable(RCU_GPIOA);
     rcu_periph_clock_enable(RCU_GPIOB);
     rcu_periph_clock_enable(RCU_AF);
 
-    gpio_init(RVL_LINK_TCK_PORT, GPIO_MODE_OUT_PP, GPIO_OSPEED_10MHZ, RVL_LINK_TCK_PIN);
-    gpio_init(RVL_LINK_TMS_PORT, GPIO_MODE_OUT_PP, GPIO_OSPEED_10MHZ, RVL_LINK_TMS_PIN);
-    gpio_init(RVL_LINK_TDI_PORT, GPIO_MODE_OUT_PP, GPIO_OSPEED_10MHZ, RVL_LINK_TDI_PIN);
-    gpio_init(RVL_LINK_TDO_PORT, GPIO_MODE_IPU, 0, RVL_LINK_TDO_PIN);
+    gpio_init(RV_LINK_TCK_PORT, GPIO_MODE_OUT_PP, GPIO_OSPEED_10MHZ, RV_LINK_TCK_PIN);
+    gpio_init(RV_LINK_TMS_PORT, GPIO_MODE_OUT_PP, GPIO_OSPEED_10MHZ, RV_LINK_TMS_PIN);
+    gpio_init(RV_LINK_TDI_PORT, GPIO_MODE_OUT_PP, GPIO_OSPEED_10MHZ, RV_LINK_TDI_PIN);
+    gpio_init(RV_LINK_TDO_PORT, GPIO_MODE_IPU, 0, RV_LINK_TDO_PIN);
 }
 
-void rvl_jtag_fini(void)
+void rv_jtag_fini(void)
 {
-    gpio_init(RVL_LINK_TCK_PORT, GPIO_MODE_AIN, 0, RVL_LINK_TCK_PIN);
-    gpio_init(RVL_LINK_TMS_PORT, GPIO_MODE_AIN, 0, RVL_LINK_TMS_PIN);
-    gpio_init(RVL_LINK_TDI_PORT, GPIO_MODE_AIN, 0, RVL_LINK_TDI_PIN);
-    gpio_init(RVL_LINK_TDO_PORT, GPIO_MODE_AIN, 0, RVL_LINK_TDO_PIN);
+    gpio_init(RV_LINK_TCK_PORT, GPIO_MODE_AIN, 0, RV_LINK_TCK_PIN);
+    gpio_init(RV_LINK_TMS_PORT, GPIO_MODE_AIN, 0, RV_LINK_TMS_PIN);
+    gpio_init(RV_LINK_TDI_PORT, GPIO_MODE_AIN, 0, RV_LINK_TDI_PIN);
+    gpio_init(RV_LINK_TDO_PORT, GPIO_MODE_AIN, 0, RV_LINK_TDO_PIN);
 }
