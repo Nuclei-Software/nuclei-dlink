@@ -29,3 +29,4 @@ void rv_tap_reset(uint32_t len);
 void rv_tap_idle(uint32_t len);
 void rv_tap_shift_dr(uint32_t* out, uint32_t* in, uint32_t len);
 void rv_tap_shift_ir(uint32_t* out, uint32_t* in, uint32_t len);
+void rv_tap_oscan1_mode(void);

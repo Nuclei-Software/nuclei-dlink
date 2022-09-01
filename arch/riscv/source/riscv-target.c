@@ -28,6 +28,7 @@ typedef struct {
     rv_dmi_t dmi;
     uint32_t xlen;
     uint32_t flen;
+    bool oscan1_mode;
 } rv_target_t;
 
 typedef union {
@@ -567,8 +568,12 @@ void rv_target_init(void)
     err_msg = "no error";
     target.xlen = 0;
     target.flen = 0;
+    target.oscan1_mode = false;
 
     rv_tap_init();
+    if (target.oscan1_mode) {
+        rv_tap_oscan1_mode();
+    }
 }
 
 void rv_target_deinit(void)
