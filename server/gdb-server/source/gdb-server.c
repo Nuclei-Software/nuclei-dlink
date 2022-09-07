@@ -75,6 +75,7 @@ void gdb_server_cmd_qSupported(void);
 void gdb_server_cmd_question_mark(void);
 void gdb_server_cmd_s(void);
 void gdb_server_cmd_v(void);
+void gdb_server_cmd_custom(void);
 void gdb_server_cmd_vFlashDone(void);
 void gdb_server_cmd_vFlashErase(void);
 void gdb_server_cmd_vFlashWrite(void);
@@ -190,6 +191,8 @@ void gdb_server_poll(void)
                     gdb_server_cmd_Z();
                 } else if (c == 'v') {
                     gdb_server_cmd_v();
+                } else if (c == '+') {
+                    gdb_server_cmd_custom();
                 } else {
                     gdb_server_reply_empty();
                 }
@@ -687,6 +690,20 @@ void gdb_server_cmd_v(void)
         gdb_server_cmd_vMustReplyEmpty();
     } else {
         gdb_server_reply_empty();
+    }
+}
+
+
+/*
+ * ‘+’
+ * Packets starting with ‘+’ are custom command.
+ */
+void gdb_server_cmd_custom(void)
+{
+    if (strncmp(cmd.data, "+oscan1_mode:true", 17) == 0) {
+        rv_target_oscan1_mode(true);
+    } else {
+        rv_target_oscan1_mode(false);
     }
 }
 

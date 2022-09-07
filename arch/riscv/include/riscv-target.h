@@ -127,6 +127,7 @@ void rv_target_init(void);
 void rv_target_deinit(void);
 uint32_t rv_target_xlen(void);
 uint32_t rv_target_flen(void);
+void rv_target_oscan1_mode(bool state);
 void rv_target_init_post(rv_target_error_t *err);
 void rv_target_init_after_halted(rv_target_error_t *err);
 void rv_target_fini_pre(void);

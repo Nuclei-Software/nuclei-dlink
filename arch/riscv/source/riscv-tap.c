@@ -158,40 +158,32 @@ static void rv_tap_shift(uint32_t* out, uint32_t *in, uint32_t len, uint32_t pre
 
 void rv_tap_reset(uint32_t len)
 {
-    taskENTER_CRITICAL();
     int i;
     for (i = 0; i < len; i++) {
         rv_tap_tick(1, 1);
     }
     rv_tap_tick(0, 1);
-    taskEXIT_CRITICAL();
 }
 
 void rv_tap_idle(uint32_t len)
 {
-    taskENTER_CRITICAL();
     int i;
     for (i = 0; i < len; i++) {
         rv_tap_tick(0, 1);
     }
-    taskEXIT_CRITICAL();
 }
 
 void rv_tap_shift_dr(uint32_t* out, uint32_t* in, uint32_t len)
 {
-    taskENTER_CRITICAL();
     rv_tap_tick(1, 1);
     rv_tap_shift(out, in, len, RV_TAP_DR_PRE, RV_TAP_DR_POST);
-    taskEXIT_CRITICAL();
 }
 
 void rv_tap_shift_ir(uint32_t* out, uint32_t* in, uint32_t len)
 {
-    taskENTER_CRITICAL();
     rv_tap_tick(1, 1);
     rv_tap_tick(1, 1);
     rv_tap_shift(out, in, len, RV_TAP_IR_PRE, RV_TAP_IR_POST);
-    taskEXIT_CRITICAL();
 }
 
 void rv_tap_oscan1_mode(void)

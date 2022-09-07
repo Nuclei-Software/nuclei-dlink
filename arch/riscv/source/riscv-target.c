@@ -568,7 +568,6 @@ void rv_target_init(void)
     err_msg = "no error";
     target.xlen = 0;
     target.flen = 0;
-    target.oscan1_mode = false;
 
     rv_tap_init();
 }
@@ -586,6 +585,11 @@ uint32_t rv_target_xlen(void)
 uint32_t rv_target_flen(void)
 {
     return target.flen;
+}
+
+void rv_target_oscan1_mode(bool state)
+{
+    target.oscan1_mode = state;
 }
 
 void rv_target_init_post(rv_target_error_t *err)
