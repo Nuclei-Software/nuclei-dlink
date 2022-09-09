@@ -122,12 +122,20 @@ typedef struct
     uint32_t addr;
 } rv_target_halt_info_t;
 
+typedef enum {
+    TARGET_INTERFACE_JTAG,
+    TARGET_INTERFACE_CJTAG,
+    TARGET_INTERFACE_TWDI,
+    TARGET_INTERFACE_NW,
+    TARGET_INTERFACE_MAX,
+} rv_target_interface_t;
+
 void rv_target_get_error(const char **str, uint32_t* pc);
 void rv_target_init(void);
 void rv_target_deinit(void);
 uint32_t rv_target_xlen(void);
 uint32_t rv_target_flen(void);
-void rv_target_oscan1_mode(bool state);
+void rv_target_set_interface(rv_target_interface_t interface);
 void rv_target_init_post(rv_target_error_t *err);
 void rv_target_init_after_halted(rv_target_error_t *err);
 void rv_target_fini_pre(void);

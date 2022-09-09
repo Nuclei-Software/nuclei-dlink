@@ -28,7 +28,7 @@ typedef struct {
     rv_dmi_t dmi;
     uint32_t xlen;
     uint32_t flen;
-    bool oscan1_mode;
+    rv_target_interface_t interface;
 } rv_target_t;
 
 typedef union {
@@ -587,16 +587,16 @@ uint32_t rv_target_flen(void)
     return target.flen;
 }
 
-void rv_target_oscan1_mode(bool state)
+void rv_target_set_interface(rv_target_interface_t interface)
 {
-    target.oscan1_mode = state;
+    target.interface = interface;
 }
 
 void rv_target_init_post(rv_target_error_t *err)
 {
     rv_tap_reset(32);
 
-    if (target.oscan1_mode) {
+    if (TARGET_INTERFACE_CJTAG == target.interface) {
         rv_tap_oscan1_mode();
     }
 

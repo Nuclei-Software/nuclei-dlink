@@ -700,10 +700,12 @@ void gdb_server_cmd_v(void)
  */
 void gdb_server_cmd_custom(void)
 {
-    if (strncmp(cmd.data, "+oscan1_mode:true", 17) == 0) {
-        rv_target_oscan1_mode(true);
+    if (strncmp(cmd.data, "+interface:jtag", 15) == 0) {
+        rv_target_set_interface(TARGET_INTERFACE_JTAG);
+    } else if (strncmp(cmd.data, "+interface:cjtag", 16) == 0) {
+        rv_target_set_interface(TARGET_INTERFACE_CJTAG);
     } else {
-        rv_target_oscan1_mode(false);
+        rv_target_set_interface(TARGET_INTERFACE_JTAG);
     }
 }
 
