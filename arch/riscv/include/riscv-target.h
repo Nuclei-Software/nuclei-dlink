@@ -20,11 +20,8 @@
 #include <stddef.h>
 #include "config.h"
 
-#define XLEN_RV32                   (4)
-#define XLEN_RV64                   (8)
-
-#define FLEN_SINGLE                 (4)
-#define FLEN_DOUBLE                 (8)
+#define MXL_RV32                   (1)
+#define MXL_RV64                   (2)
 
 /*
  * Debug Transport Module (DTM)
@@ -130,11 +127,96 @@ typedef enum {
     TARGET_INTERFACE_MAX,
 } rv_target_interface_t;
 
+typedef union {
+    uint32_t value;
+    struct {
+        uint32_t prv: 2;
+        uint32_t step: 1;
+        uint32_t nmip: 1;
+        uint32_t mprven: 1;
+        uint32_t reserved5: 1;
+        uint32_t cause: 3;
+        uint32_t stoptime: 1;
+        uint32_t stopcount: 1;
+        uint32_t stepie: 1;
+        uint32_t ebreaku: 1;
+        uint32_t ebreaks: 1;
+        uint32_t reserved14: 1;
+        uint32_t ebreakm: 1;
+        uint32_t reserved16: 12;
+        uint32_t xdebugver: 4;
+    };
+} rv_dcsr_t;
+
+typedef union {
+    uint32_t value;
+    struct {
+        uint32_t a: 1;                           /*!< bit:     0  Atomic extension */
+        uint32_t b: 1;                           /*!< bit:     1  Tentatively reserved for Bit-Manipulation extension */
+        uint32_t c: 1;                           /*!< bit:     2  Compressed extension */
+        uint32_t d: 1;                           /*!< bit:     3  Double-precision floating-point extension */
+        uint32_t e: 1;                           /*!< bit:     4  RV32E base ISA */
+        uint32_t f: 1;                           /*!< bit:     5  Single-precision floating-point extension */
+        uint32_t g: 1;                           /*!< bit:     6  Additional standard extensions present */
+        uint32_t h: 1;                           /*!< bit:     7  Hypervisor extension */
+        uint32_t i: 1;                           /*!< bit:     8  RV32I/64I/128I base ISA */
+        uint32_t j: 1;                           /*!< bit:     9  Tentatively reserved for Dynamically Translated Languages extension */
+        uint32_t reserved10: 1;                  /*!< bit:     10 Reserved  */
+        uint32_t l: 1;                           /*!< bit:     11 Tentatively reserved for Decimal Floating-Point extension  */
+        uint32_t m: 1;                           /*!< bit:     12 Integer Multiply/Divide extension */
+        uint32_t n: 1;                           /*!< bit:     13 User-level interrupts supported  */
+        uint32_t reserved14: 1;                  /*!< bit:     14 Reserved  */
+        uint32_t p: 1;                           /*!< bit:     15 Tentatively reserved for Packed-SIMD extension  */
+        uint32_t q: 1;                           /*!< bit:     16 Quad-precision floating-point extension  */
+        uint32_t resreved17: 1;                  /*!< bit:     17 Reserved  */
+        uint32_t s: 1;                           /*!< bit:     18 Supervisor mode implemented  */
+        uint32_t t: 1;                           /*!< bit:     19 Tentatively reserved for Transactional Memory extension  */
+        uint32_t u: 1;                           /*!< bit:     20 User mode implemented  */
+        uint32_t v: 1;                           /*!< bit:     21 Tentatively reserved for Vector extension  */
+        uint32_t reserved22: 1;                  /*!< bit:     22 Reserved  */
+        uint32_t x: 1;                           /*!< bit:     23 Non-standard extensions present  */
+        uint32_t reserved24: 6;                  /*!< bit:     24..29 Reserved  */
+        uint32_t mxl: 2;                         /*!< bit:     30..31 Machine XLEN  */
+    };
+} rv_misa_rv32_t;
+
+typedef union {
+    uint64_t value;
+    struct {
+        uint64_t a: 1;                           /*!< bit:     0  Atomic extension */
+        uint64_t b: 1;                           /*!< bit:     1  Tentatively reserved for Bit-Manipulation extension */
+        uint64_t c: 1;                           /*!< bit:     2  Compressed extension */
+        uint64_t d: 1;                           /*!< bit:     3  Double-precision floating-point extension */
+        uint64_t e: 1;                           /*!< bit:     4  RV32E base ISA */
+        uint64_t f: 1;                           /*!< bit:     5  Single-precision floating-point extension */
+        uint64_t g: 1;                           /*!< bit:     6  Additional standard extensions present */
+        uint64_t h: 1;                           /*!< bit:     7  Hypervisor extension */
+        uint64_t i: 1;                           /*!< bit:     8  RV32I/64I/128I base ISA */
+        uint64_t j: 1;                           /*!< bit:     9  Tentatively reserved for Dynamically Translated Languages extension */
+        uint64_t reserved10: 1;                  /*!< bit:     10 Reserved  */
+        uint64_t l: 1;                           /*!< bit:     11 Tentatively reserved for Decimal Floating-Point extension  */
+        uint64_t m: 1;                           /*!< bit:     12 Integer Multiply/Divide extension */
+        uint64_t n: 1;                           /*!< bit:     13 User-level interrupts supported  */
+        uint64_t reserved14: 1;                  /*!< bit:     14 Reserved  */
+        uint64_t p: 1;                           /*!< bit:     15 Tentatively reserved for Packed-SIMD extension  */
+        uint64_t q: 1;                           /*!< bit:     16 Quad-precision floating-point extension  */
+        uint64_t resreved17: 1;                  /*!< bit:     17 Reserved  */
+        uint64_t s: 1;                           /*!< bit:     18 Supervisor mode implemented  */
+        uint64_t t: 1;                           /*!< bit:     19 Tentatively reserved for Transactional Memory extension  */
+        uint64_t u: 1;                           /*!< bit:     20 User mode implemented  */
+        uint64_t v: 1;                           /*!< bit:     21 Tentatively reserved for Vector extension  */
+        uint64_t reserved22: 1;                  /*!< bit:     22 Reserved  */
+        uint64_t x: 1;                           /*!< bit:     23 Non-standard extensions present  */
+        uint64_t reserved24: 38;                 /*!< bit:     24..61 Reserved  */
+        uint64_t mxl: 2;                         /*!< bit:     62..63 Machine XLEN  */
+    };
+} rv_misa_rv64_t;
+
 void rv_target_get_error(const char **str, uint32_t* pc);
 void rv_target_init(void);
 void rv_target_deinit(void);
-uint32_t rv_target_xlen(void);
-uint32_t rv_target_flen(void);
+uint32_t rv_target_misa(void);
+uint32_t rv_target_mxl(void);
 void rv_target_set_interface(rv_target_interface_t interface);
 void rv_target_init_post(rv_target_error_t *err);
 void rv_target_init_after_halted(rv_target_error_t *err);
@@ -155,10 +237,6 @@ void rv_target_remove_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr
 void rv_target_flash_erase(uint32_t addr, uint32_t len, uint32_t *err);
 void rv_target_flash_write(uint32_t addr, uint32_t len, uint8_t *buffer, uint32_t *err);
 void rv_target_flash_done(void);
-
-const char* rv_target_get_target_xml(void);
-uint32_t rv_target_get_target_xml_len(void);
-
 
 /*===============================DM============================================*/
 /*==== debug module register ====*/

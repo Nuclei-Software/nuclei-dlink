@@ -89,7 +89,6 @@ static void gdb_server_reply_ok(void);
 static void gdb_server_reply_empty(void);
 static void gdb_server_reply_err(int err);
 
-static void gdb_server_cmd_qxfer_features_read_target_xml(void);
 static void gdb_server_cmd_qxfer_memory_map_read(void);
 
 static void bin_to_hex(const uint8_t *bin, char *hex, uint32_t nbyte);
@@ -210,8 +209,6 @@ void gdb_server_cmd_q(void)
 {
     if (strncmp(cmd.data, "qSupported:", 11) == 0) {
         gdb_server_cmd_qSupported();
-    } else if (strncmp(cmd.data, "qXfer:features:read:target.xml:", 31) == 0) {
-        gdb_server_cmd_qxfer_features_read_target_xml();
     } else if (strncmp(cmd.data, "qXfer:memory-map:read::", 23) == 0) {
         gdb_server_cmd_qxfer_memory_map_read();
     } else if (strncmp(cmd.data, "qRcmd,", 6) == 0) {
@@ -243,38 +240,6 @@ void gdb_server_cmd_qSupported(void)
     rsp.len = strlen(qSupported_res);
     xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
     gdb_server_connected();
-}
-
-
-/*
- * qXfer:features:read:target.xml
- */
-static void gdb_server_cmd_qxfer_features_read_target_xml(void)
-{
-    uint32_t target_xml_len;
-    const char *target_xml_str;
-    unsigned int read_addr;
-    unsigned int read_len;
-
-    sscanf(&cmd.data[31], "%x,%x", &read_addr, &read_len);
-
-    if (read_len > GDB_PACKET_BUFF_SIZE) {
-        read_len = GDB_PACKET_BUFF_SIZE;
-    }
-
-    target_xml_len = rv_target_get_target_xml_len();
-
-    if (read_len >= target_xml_len - read_addr) {
-        read_len = target_xml_len - read_addr;
-        rsp.data[0] = 'l';
-    } else {
-        rsp.data[0] = 'm';
-    }
-
-    target_xml_str = rv_target_get_target_xml();
-    strncpy(&rsp.data[1], &target_xml_str[read_addr], read_len);
-    rsp.len = read_len + 1;
-    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 
 /*
@@ -419,19 +384,19 @@ void gdb_server_cmd_g(void)
     rv_target_read_core_registers(gdb_server_i.regs);
 
     for(i = 0; i < RV_TARGET_CONFIG_REG_NUM; i++) {
-        if (XLEN_RV32 == rv_target_xlen()) {
-            uint32_to_hex_le(*(((uint32_t*)gdb_server_i.regs) + i), &rsp.data[i * (XLEN_RV32 * 2)]);
-        } else if (XLEN_RV64 == rv_target_xlen()) {
-            uint64_to_hex_le(gdb_server_i.regs[i], &rsp.data[i * (XLEN_RV64 * 2)]);
+        if (MXL_RV32 == rv_target_mxl()) {
+            uint32_to_hex_le(*(((uint32_t*)gdb_server_i.regs) + i), &rsp.data[i * (MXL_RV32 * 8)]);
+        } else if (MXL_RV64 == rv_target_mxl()) {
+            uint64_to_hex_le(gdb_server_i.regs[i], &rsp.data[i * (MXL_RV64 * 8)]);
         } else {
             //TODO:
             return;
         }
     }
-    if (XLEN_RV32 == rv_target_xlen()) {
-        rsp.len = XLEN_RV32 * 2 * RV_TARGET_CONFIG_REG_NUM;
-    } else if (XLEN_RV64 == rv_target_xlen()) {
-        rsp.len = XLEN_RV64 * 2 * RV_TARGET_CONFIG_REG_NUM;
+    if (MXL_RV32 == rv_target_mxl()) {
+        rsp.len = MXL_RV32 * 8 * RV_TARGET_CONFIG_REG_NUM;
+    } else if (MXL_RV64 == rv_target_mxl()) {
+        rsp.len = MXL_RV64 * 8 * RV_TARGET_CONFIG_REG_NUM;
     } else {
         //TODO:
         return;
@@ -449,10 +414,10 @@ void gdb_server_cmd_G(void)
     int i;
 
     for(i = 0; i < RV_TARGET_CONFIG_REG_NUM; i++) {
-        if (XLEN_RV32 == rv_target_xlen()) {
-            hex_to_uint32_le(&cmd.data[i * (XLEN_RV32 * 2) + 1], ((uint32_t*)gdb_server_i.regs) + i);
-        } else if (XLEN_RV64 == rv_target_xlen()) {
-            hex_to_uint64_le(&cmd.data[i * (XLEN_RV64 * 2) + 1], &gdb_server_i.regs[i]);
+        if (MXL_RV32 == rv_target_mxl()) {
+            hex_to_uint32_le(&cmd.data[i * (MXL_RV32 * 8) + 1], ((uint32_t*)gdb_server_i.regs) + i);
+        } else if (MXL_RV64 == rv_target_mxl()) {
+            hex_to_uint64_le(&cmd.data[i * (MXL_RV64 * 8) + 1], &gdb_server_i.regs[i]);
         }  else {
             //TODO:
             return;
@@ -474,12 +439,12 @@ void gdb_server_cmd_p(void)
     sscanf(&cmd.data[1], "%x", &gdb_server_i.reg_tmp_num);
 
     rv_target_read_register(&gdb_server_i.reg_tmp, gdb_server_i.reg_tmp_num);
-    if (XLEN_RV32 == rv_target_xlen()) {
+    if (MXL_RV32 == rv_target_mxl()) {
         uint32_to_hex_le((uint32_t)gdb_server_i.reg_tmp, rsp.data);
-        rsp.len = XLEN_RV32 * 2;
-    } else if (XLEN_RV64 == rv_target_xlen()) {
+        rsp.len = MXL_RV32 * 8;
+    } else if (MXL_RV64 == rv_target_mxl()) {
         uint64_to_hex_le(gdb_server_i.reg_tmp, rsp.data);
-        rsp.len = XLEN_RV64 * 2;
+        rsp.len = MXL_RV64 * 8;
     } else {
         //TODO:
         return;
@@ -500,9 +465,9 @@ void gdb_server_cmd_P(void)
     sscanf(&cmd.data[1], "%x", &gdb_server_i.reg_tmp_num);
     p = strchr(&cmd.data[1], '=');
     p++;
-    if (XLEN_RV32 == rv_target_xlen()) {
+    if (MXL_RV32 == rv_target_mxl()) {
         hex_to_uint32_le(p, (uint32_t*)&gdb_server_i.reg_tmp);
-    } else if (XLEN_RV64 == rv_target_xlen()) {
+    } else if (MXL_RV64 == rv_target_mxl()) {
         hex_to_uint64_le(p, &gdb_server_i.reg_tmp);
     } else {
         //TODO:
@@ -693,23 +658,6 @@ void gdb_server_cmd_v(void)
     }
 }
 
-
-/*
- * ‘+’
- * Packets starting with ‘+’ are custom command.
- */
-void gdb_server_cmd_custom(void)
-{
-    if (strncmp(cmd.data, "+interface:jtag", 15) == 0) {
-        rv_target_set_interface(TARGET_INTERFACE_JTAG);
-    } else if (strncmp(cmd.data, "+interface:cjtag", 16) == 0) {
-        rv_target_set_interface(TARGET_INTERFACE_CJTAG);
-    } else {
-        rv_target_set_interface(TARGET_INTERFACE_JTAG);
-    }
-}
-
-
 /*
  * ‘vFlashErase:addr,length’
  * Direct the stub to erase length bytes of flash starting at addr.
@@ -789,6 +737,31 @@ void gdb_server_cmd_vMustReplyEmpty(void)
     }
 }
 
+/*
+ * ‘+’
+ * Packets starting with ‘+’ custom command.
+ * Rsponse starting with '-' custom command
+ */
+void gdb_server_cmd_custom(void)
+{
+    if (strncmp(cmd.data, "+:set:interface:jtag;", 15) == 0) {
+        rv_target_set_interface(TARGET_INTERFACE_JTAG);
+    } else if (strncmp(cmd.data, "+:set:interface:cjtag;", 16) == 0) {
+        rv_target_set_interface(TARGET_INTERFACE_CJTAG);
+    } else if (strncmp(cmd.data, "+:read:misa:vlenb;", 18) == 0) {
+        strncpy(rsp.data, "-:read:misa:vlenb:", 18);
+        rsp.len = 18;
+        uint32_t misa = rv_target_misa();
+        sprintf(&rsp.data[rsp.len], "%08x:", misa);
+        rsp.len += 9;
+        uint64_t vlenb;
+        rv_target_read_register(&vlenb, 3171);
+        sprintf(&rsp.data[rsp.len], "%016x;", vlenb);
+        rsp.len += 17;
+        xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+    } else {
+    }
+}
 
 static void gdb_server_reply_ok(void)
 {

@@ -35,16 +35,6 @@
 
 /* other library header file includes */
 #include "nuclei_sdk_soc.h"
-#include "debug.h"
-#include "assert.h"
-
-#define RV_ASSERT_EN
-
-#define RV_DEBUG_EN
-
-#ifndef RV_FLEN_8
-#define RV_FLEN_8
-#endif
 
 #ifndef RV_TARGET_CONFIG_DMI_RETRIES
 #define RV_TARGET_CONFIG_DMI_RETRIES                    (6)

@@ -115,45 +115,42 @@ static uint32_t rv_tap_tick(uint32_t tms, uint32_t tdi)
     return tdo;
 }
 
-static void rv_tap_shift(uint32_t* out, uint32_t *in, uint32_t len, uint32_t pre, uint32_t post)
+static void rv_tap_shift(uint32_t* out, uint32_t *in, uint32_t len, uint32_t post, uint32_t pre)
 {
     int i, tdo;
 
-    rv_tap_tick(0, 1);
-    if (len != 0) {
-        rv_tap_tick(0, 1);
-    }
-
-    for(i = 0; i < pre; i++) {
-        rv_tap_tick(0, 1);
-    }
-
-    for(i = 0; i < len; i++) {
-        if ((i == len - 1) && (post == 0)) {
-            tdo = rv_tap_tick(1, (in[i / 32] >> (i % 32)) & 1);
-        } else {
-            tdo = rv_tap_tick(0, (in[i / 32] >> (i % 32)) & 1);
+    rv_tap_tick(0, 1);/* Select-DR(IR)-Scan -> Capture-DR(IR) */
+    if (len) {
+        rv_tap_tick(0, 1);/* Capture-DR(IR) -> Shift-DR(IR) */
+        /* Select Tap Post*/
+        for(i = 0; i < post; i++) {
+            rv_tap_tick(0, 1);/* Shift-DR(IR) -> Shift-DR(IR) */
         }
-        if (tdo) {
-            out[i / 32] |= 1 << (i % 32);
-        } else {
-            out[i / 32] &= ~(1 << (i % 32));
+        for(i = 0; i < len; i++) {
+            if ((i == len - 1) && (post == 0)) {
+                tdo = rv_tap_tick(1, (in[i / 32] >> (i % 32)) & 1);/* Shift-DR(IR) -> Exit1-DR(IR) */
+            } else {
+                tdo = rv_tap_tick(0, (in[i / 32] >> (i % 32)) & 1);/* Shift-DR(IR) -> Shift-DR(IR) */
+            }
+            if (tdo) {
+                out[i / 32] |= 1 << (i % 32);
+            } else {
+                out[i / 32] &= ~(1 << (i % 32));
+            }
         }
-    }
-
-    for(i = 0; i < post; i++) {
-        if (i == post -1) {
-            rv_tap_tick(1, 1);
-        } else {
-            rv_tap_tick(0, 1);
+        /* Select Tap Pre*/
+        for(i = 0; i < pre; i++) {
+            if (i == pre -1) {
+                rv_tap_tick(1, 1);/* Shift-DR(IR) -> Exit1-DR(IR) */
+            } else {
+                rv_tap_tick(0, 1);/* Shift-DR(IR) -> Shift-DR(IR) */
+            }
         }
+    } else {
+        rv_tap_tick(1, 1);/* Capture-DR(IR) -> Exit1-DR(IR) */
     }
-
-    if (len == 0) {
-        rv_tap_tick(1, 1);
-    }
-    rv_tap_tick(1, 1);
-    rv_tap_tick(0, 1);
+    rv_tap_tick(1, 1);/* Exit1-DR(IR) -> Update-DR(IR) */
+    rv_tap_tick(0, 1);/* Update-DR(IR) -> Run-Test-Idle */
 }
 
 void rv_tap_reset(uint32_t len)
@@ -175,15 +172,15 @@ void rv_tap_idle(uint32_t len)
 
 void rv_tap_shift_dr(uint32_t* out, uint32_t* in, uint32_t len)
 {
-    rv_tap_tick(1, 1);
-    rv_tap_shift(out, in, len, RV_TAP_DR_PRE, RV_TAP_DR_POST);
+    rv_tap_tick(1, 1);/* Run-Test-Idle -> Select-DR-Scan */
+    rv_tap_shift(out, in, len, RV_TAP_DR_POST, RV_TAP_DR_PRE);
 }
 
 void rv_tap_shift_ir(uint32_t* out, uint32_t* in, uint32_t len)
 {
-    rv_tap_tick(1, 1);
-    rv_tap_tick(1, 1);
-    rv_tap_shift(out, in, len, RV_TAP_IR_PRE, RV_TAP_IR_POST);
+    rv_tap_tick(1, 1);/* Run-Test-Idle -> Select-DR-Scan */
+    rv_tap_tick(1, 1);/* Select-DR-Scan -> Select-IR-Scan */
+    rv_tap_shift(out, in, len, RV_TAP_IR_POST, RV_TAP_IR_PRE);
 }
 
 void rv_tap_oscan1_mode(void)

@@ -26,95 +26,9 @@ typedef struct {
     rv_tr64_t tr64;
     rv_dtm_t dtm;
     rv_dmi_t dmi;
-    uint32_t xlen;
-    uint32_t flen;
+    rv_misa_rv32_t misa;
     rv_target_interface_t interface;
 } rv_target_t;
-
-typedef union {
-    uint32_t value;
-    struct {
-        uint32_t prv: 2;
-        uint32_t step: 1;
-        uint32_t nmip: 1;
-        uint32_t mprven: 1;
-        uint32_t reserved5: 1;
-        uint32_t cause: 3;
-        uint32_t stoptime: 1;
-        uint32_t stopcount: 1;
-        uint32_t stepie: 1;
-        uint32_t ebreaku: 1;
-        uint32_t ebreaks: 1;
-        uint32_t reserved14: 1;
-        uint32_t ebreakm: 1;
-        uint32_t reserved16: 12;
-        uint32_t xdebugver: 4;
-    };
-} rv_dcsr_t;
-
-typedef union {
-    uint32_t value;
-    struct {
-        uint32_t a: 1;                           /*!< bit:     0  Atomic extension */
-        uint32_t b: 1;                           /*!< bit:     1  Tentatively reserved for Bit-Manipulation extension */
-        uint32_t c: 1;                           /*!< bit:     2  Compressed extension */
-        uint32_t d: 1;                           /*!< bit:     3  Double-precision floating-point extension */
-        uint32_t e: 1;                           /*!< bit:     4  RV32E base ISA */
-        uint32_t f: 1;                           /*!< bit:     5  Single-precision floating-point extension */
-        uint32_t g: 1;                           /*!< bit:     6  Additional standard extensions present */
-        uint32_t h: 1;                           /*!< bit:     7  Hypervisor extension */
-        uint32_t i: 1;                           /*!< bit:     8  RV32I/64I/128I base ISA */
-        uint32_t j: 1;                           /*!< bit:     9  Tentatively reserved for Dynamically Translated Languages extension */
-        uint32_t reserved10: 1;                  /*!< bit:     10 Reserved  */
-        uint32_t l: 1;                           /*!< bit:     11 Tentatively reserved for Decimal Floating-Point extension  */
-        uint32_t m: 1;                           /*!< bit:     12 Integer Multiply/Divide extension */
-        uint32_t n: 1;                           /*!< bit:     13 User-level interrupts supported  */
-        uint32_t reserved14: 1;                  /*!< bit:     14 Reserved  */
-        uint32_t p: 1;                           /*!< bit:     15 Tentatively reserved for Packed-SIMD extension  */
-        uint32_t q: 1;                           /*!< bit:     16 Quad-precision floating-point extension  */
-        uint32_t resreved17: 1;                  /*!< bit:     17 Reserved  */
-        uint32_t s: 1;                           /*!< bit:     18 Supervisor mode implemented  */
-        uint32_t t: 1;                           /*!< bit:     19 Tentatively reserved for Transactional Memory extension  */
-        uint32_t u: 1;                           /*!< bit:     20 User mode implemented  */
-        uint32_t v: 1;                           /*!< bit:     21 Tentatively reserved for Vector extension  */
-        uint32_t reserved22: 1;                  /*!< bit:     22 Reserved  */
-        uint32_t x: 1;                           /*!< bit:     23 Non-standard extensions present  */
-        uint32_t reserved24: 6;                  /*!< bit:     24..29 Reserved  */
-        uint32_t mxl: 2;                         /*!< bit:     30..31 Machine XLEN  */
-    };
-} rv_misa_rv32_t;
-
-typedef union {
-    uint64_t value;
-    struct {
-        uint64_t a: 1;                           /*!< bit:     0  Atomic extension */
-        uint64_t b: 1;                           /*!< bit:     1  Tentatively reserved for Bit-Manipulation extension */
-        uint64_t c: 1;                           /*!< bit:     2  Compressed extension */
-        uint64_t d: 1;                           /*!< bit:     3  Double-precision floating-point extension */
-        uint64_t e: 1;                           /*!< bit:     4  RV32E base ISA */
-        uint64_t f: 1;                           /*!< bit:     5  Single-precision floating-point extension */
-        uint64_t g: 1;                           /*!< bit:     6  Additional standard extensions present */
-        uint64_t h: 1;                           /*!< bit:     7  Hypervisor extension */
-        uint64_t i: 1;                           /*!< bit:     8  RV32I/64I/128I base ISA */
-        uint64_t j: 1;                           /*!< bit:     9  Tentatively reserved for Dynamically Translated Languages extension */
-        uint64_t reserved10: 1;                  /*!< bit:     10 Reserved  */
-        uint64_t l: 1;                           /*!< bit:     11 Tentatively reserved for Decimal Floating-Point extension  */
-        uint64_t m: 1;                           /*!< bit:     12 Integer Multiply/Divide extension */
-        uint64_t n: 1;                           /*!< bit:     13 User-level interrupts supported  */
-        uint64_t reserved14: 1;                  /*!< bit:     14 Reserved  */
-        uint64_t p: 1;                           /*!< bit:     15 Tentatively reserved for Packed-SIMD extension  */
-        uint64_t q: 1;                           /*!< bit:     16 Quad-precision floating-point extension  */
-        uint64_t resreved17: 1;                  /*!< bit:     17 Reserved  */
-        uint64_t s: 1;                           /*!< bit:     18 Supervisor mode implemented  */
-        uint64_t t: 1;                           /*!< bit:     19 Tentatively reserved for Transactional Memory extension  */
-        uint64_t u: 1;                           /*!< bit:     20 User mode implemented  */
-        uint64_t v: 1;                           /*!< bit:     21 Tentatively reserved for Vector extension  */
-        uint64_t reserved22: 1;                  /*!< bit:     22 Reserved  */
-        uint64_t x: 1;                           /*!< bit:     23 Non-standard extensions present  */
-        uint64_t reserved24: 38;                 /*!< bit:     24..61 Reserved  */
-        uint64_t mxl: 2;                         /*!< bit:     62..63 Machine XLEN  */
-    };
-} rv_misa_rv64_t;
 
 static rv_target_t target;
 rv_dcsr_t dcsr;
@@ -252,18 +166,18 @@ static void rv_dmi_write(uint32_t addr, uint32_t in)
 
 static void rv_register_read(uint32_t *reg, uint32_t regno)
 {
-    uint32_t xlen;
+    uint32_t mxl;
     if (regno == CSR_DCSR) {
-        xlen = XLEN_RV32;
+        mxl = MXL_RV32;
     } else {
-        xlen = target.xlen;
+        mxl = target.misa.mxl;
     }
     err_flag = false;
     target.dm.command.value = 0;
     target.dm.command.reg.cmdtype = RV_DM_ABSTRACT_CMD_ACCESS_REG;
-    if (XLEN_RV32 == xlen) {
+    if (MXL_RV32 == mxl) {
         target.dm.command.reg.aarsize = 2;
-    } else if (XLEN_RV64 == xlen) {
+    } else if (MXL_RV64 == mxl) {
         target.dm.command.reg.aarsize = 3;
     } else {
         //TODO:
@@ -281,10 +195,10 @@ static void rv_register_read(uint32_t *reg, uint32_t regno)
         rv_dmi_write(RV_DM_ABSTRACT_CONTROL_AND_STATUS, target.dm.abstractcs.value);
         *reg = 0xffffffff;
     } else {
-        if (XLEN_RV32 == xlen) {
+        if (MXL_RV32 == mxl) {
             rv_dmi_read(RV_DM_ABSTRACT_DATA0, &target.dm.data[0]);
             reg[0] = target.dm.data[0];
-        } else if (XLEN_RV64 == xlen) {
+        } else if (MXL_RV64 == mxl) {
             rv_dmi_read(RV_DM_ABSTRACT_DATA0, &target.dm.data[0]);
             reg[0] = target.dm.data[0];
             rv_dmi_read(RV_DM_ABSTRACT_DATA1, &target.dm.data[1]);
@@ -298,17 +212,17 @@ static void rv_register_read(uint32_t *reg, uint32_t regno)
 
 static void rv_register_write(uint32_t *reg, uint32_t regno)
 {
-    uint32_t xlen;
+    uint32_t mxl;
     if (regno == CSR_DCSR) {
-        xlen = XLEN_RV32;
+        mxl = MXL_RV32;
     } else {
-        xlen = target.xlen;
+        mxl = target.misa.mxl;
     }
     err_flag = false;
-    if (XLEN_RV32 == xlen) {
+    if (MXL_RV32 == mxl) {
         target.dm.data[0] = reg[0];
         rv_dmi_write(RV_DM_ABSTRACT_DATA0, target.dm.data[0]);
-    } else if (XLEN_RV64 == xlen) {
+    } else if (MXL_RV64 == mxl) {
         target.dm.data[0] = reg[0];
         rv_dmi_write(RV_DM_ABSTRACT_DATA0, target.dm.data[0]);
         target.dm.data[1] = reg[1];
@@ -320,9 +234,9 @@ static void rv_register_write(uint32_t *reg, uint32_t regno)
 
     target.dm.command.value = 0;
     target.dm.command.reg.cmdtype = RV_DM_ABSTRACT_CMD_ACCESS_REG;
-    if (XLEN_RV32 == xlen) {
+    if (MXL_RV32 == mxl) {
         target.dm.command.reg.aarsize = 2;
-    } else if (XLEN_RV64 == xlen) {
+    } else if (MXL_RV64 == mxl) {
         target.dm.command.reg.aarsize = 3;
     } else {
         //TODO:
@@ -352,10 +266,10 @@ static void rv_memory_read(uint8_t *mem, uint64_t addr, uint32_t len, uint32_t a
     err_flag = false;
 
     for (i = 0; i < len; i++) {
-        if (XLEN_RV32 == target.xlen) {
+        if (MXL_RV32 == target.misa.mxl) {
             target.dm.data[1] = addr + (i << aamsize);
             rv_dmi_write(RV_DM_ABSTRACT_DATA1, target.dm.data[1]);
-        } else if (XLEN_RV64 == target.xlen) {
+        } else if (MXL_RV64 == target.misa.mxl) {
             target.dm.data[2] = addr + (i << aamsize);
             rv_dmi_write(RV_DM_ABSTRACT_DATA2, target.dm.data[2]);
             target.dm.data[3] = addr >> 32;
@@ -408,10 +322,10 @@ static void rv_memory_write(const uint8_t* mem, uint64_t addr, uint32_t len, uin
     err_flag = false;
 
     for (i = 0; i < len; i++) {
-        if (XLEN_RV32 == target.xlen) {
+        if (MXL_RV32 == target.misa.mxl) {
             target.dm.data[1] = addr + (i << aamsize);
             rv_dmi_write(RV_DM_ABSTRACT_DATA1, target.dm.data[1]);
-        } else if (XLEN_RV64 == target.xlen) {
+        } else if (MXL_RV64 == target.misa.mxl) {
             target.dm.data[2] = addr + (i << aamsize);
             rv_dmi_write(RV_DM_ABSTRACT_DATA2, target.dm.data[2]);
             target.dm.data[3] = addr >> 32;
@@ -566,8 +480,7 @@ void rv_target_init(void)
     err_flag = false;
     err_pc = 0;
     err_msg = "no error";
-    target.xlen = 0;
-    target.flen = 0;
+    target.misa.value = 0;
 
     rv_tap_init();
 }
@@ -577,14 +490,14 @@ void rv_target_deinit(void)
     rv_tap_deinit();
 }
 
-uint32_t rv_target_xlen(void)
+uint32_t rv_target_misa(void)
 {
-    return target.xlen;
+    return target.misa.value;
 }
 
-uint32_t rv_target_flen(void)
+uint32_t rv_target_mxl(void)
 {
-    return target.flen;
+    return target.misa.mxl;
 }
 
 void rv_target_set_interface(rv_target_interface_t interface)
@@ -640,37 +553,32 @@ void rv_target_init_after_halted(rv_target_error_t *err)
 {
     uint32_t i;
 
-    /* get xlen flen */
+    /* get misa */
     rv_misa_rv32_t misa32;
     rv_misa_rv64_t misa64;
-    target.xlen = XLEN_RV64;
+    target.misa.mxl = MXL_RV64;
     rv_register_read((uint32_t*)&misa64, CSR_MISA);
     if (err_flag) {
-        target.xlen = XLEN_RV32;
+        target.misa.mxl = MXL_RV32;
         rv_register_read((uint32_t*)&misa32, CSR_MISA);
         if (err_flag) {
             *err = rv_target_error_debug_module;
             return;
         }
         if (0x1 != misa32.mxl) {
-            target.xlen = 0;
+            target.misa.value = 0;
             *err = rv_target_error_debug_module;
             return;
         }
-        target.flen = FLEN_SINGLE;
-        if (misa32.d) {
-            target.flen = FLEN_DOUBLE;
-        }
+        target.misa.value = misa32.value;
     } else {
         if (0x2 != misa64.mxl) {
-            target.xlen = 0;
+            target.misa.value = 0;
             *err = rv_target_error_debug_module;
             return;
         }
-        target.flen = FLEN_SINGLE;
-        if (misa64.d) {
-            target.flen = FLEN_DOUBLE;
-        }
+        target.misa.value = misa64.value;
+        target.misa.mxl = misa64.mxl;
     }
 
     rv_register_read(&dcsr.value, CSR_DCSR);
@@ -719,15 +627,15 @@ void rv_target_read_core_registers(void *regs)
     uint32_t i;
 
     for(i = 1; i < 32; i++) {
-        if (XLEN_RV32 == target.xlen) {
+        if (MXL_RV32 == target.misa.mxl) {
             rv_register_read((uint32_t*)regs + i, i + 0x1000);
-        } else if (XLEN_RV64 == target.xlen) {
+        } else if (MXL_RV64 == target.misa.mxl) {
             rv_register_read((uint32_t*)((uint64_t*)regs + i), i + 0x1000);
         }
     }
-    if (XLEN_RV32 == target.xlen) {
+    if (MXL_RV32 == target.misa.mxl) {
         rv_register_read((uint32_t*)regs + 32, CSR_DPC);
-    } else if (XLEN_RV64 == target.xlen) {
+    } else if (MXL_RV64 == target.misa.mxl) {
         rv_register_read((uint32_t*)((uint64_t*)regs + 32), CSR_DPC);
     }
 }
@@ -737,15 +645,15 @@ void rv_target_write_core_registers(void *regs)
     uint32_t i;
 
     for(i = 1; i < 32; i++) {
-        if (XLEN_RV32 == target.xlen) {
+        if (MXL_RV32 == target.misa.mxl) {
             rv_register_write((uint32_t*)regs + i, i + 0x1000);
-        } else if (XLEN_RV64 == target.xlen) {
+        } else if (MXL_RV64 == target.misa.mxl) {
             rv_register_write((uint32_t*)((uint64_t*)regs + i), i + 0x1000);
         }
     }
-    if (XLEN_RV32 == target.xlen) {
+    if (MXL_RV32 == target.misa.mxl) {
         rv_register_write((uint32_t*)regs + 32, CSR_DPC);
-    } else if (XLEN_RV64 == target.xlen) {
+    } else if (MXL_RV64 == target.misa.mxl) {
         rv_register_write((uint32_t*)((uint64_t*)regs + 32), CSR_DPC);
     }
 }
@@ -758,7 +666,7 @@ void rv_target_read_register(void *reg, uint32_t regno)
         rv_register_read((uint32_t*)reg, CSR_DPC);
     } else if (regno <= 64) { // FPRs
         rv_register_read((uint32_t*)reg, regno + 0x1000 - 1);
-    } else if (regno <= (0x1000 + 64)) { // CSRs
+    } else if (regno <= (4095 + 65)) { // CSRs
         rv_register_read((uint32_t*)reg, regno - 65);
     } else if (regno == 4161) {  // priv
         rv_register_read(&dcsr.value, CSR_DCSR);
@@ -776,7 +684,7 @@ void rv_target_write_register(void *reg, uint32_t regno)
         rv_register_write((uint32_t*)reg, CSR_DPC);
     } else if (regno <= 64) { // FPRs
         rv_register_write((uint32_t*)reg, regno + 0x1000 - 1);
-    } else if (regno <= (0x1000 + 64)) { // CSRs
+    } else if (regno <= (4095 + 65)) { // CSRs
         rv_register_write((uint32_t*)reg, regno - 65);
     } else if (regno == 4161) {  // priv
         rv_register_read(&dcsr.value, CSR_DCSR);
@@ -871,12 +779,12 @@ void rv_target_halt_check(rv_target_halt_info_t* halt_info)
 #if 0
             for(i = 0; i < RV_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM; i++) {
                 if (hardware_breakpoints[i].type != rv_target_breakpoint_type_unused) {
-                    if (XLEN_RV32 == target.xlen) {
+                    if (MXL_RV32 == target.misa.mxl) {
                         target.tr32.tselect = i;
                         rv_register_write(&target.tr32.tselect, CSR_TSELECT);
                         rv_register_read(&target.tr32.tdata1.value, CSR_TDATA1);
                         mc_hit = target.tr32.tdata1.mc.hit;
-                    } if (XLEN_RV64 == target.xlen) {
+                    } if (MXL_RV64 == target.misa.mxl) {
                         target.tr64.tselect = i;
                         rv_register_write((uint32_t*)&target.tr64.tselect, CSR_TSELECT);
                         rv_register_read((uint32_t*)&target.tr64.tdata1.value, CSR_TDATA1);
@@ -1017,7 +925,7 @@ void rv_target_insert_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr
                 hardware_breakpoints[i].type = type;
                 hardware_breakpoints[i].addr = addr;
                 hardware_breakpoints[i].kind = kind;
-                if (XLEN_RV32 == target.xlen) {
+                if (MXL_RV32 == target.misa.mxl) {
                     target.tr32.tselect = i;
                     rv_register_write(&target.tr32.tselect, CSR_TSELECT);
                     target.tr32.tdata1.value = 0;
@@ -1059,7 +967,7 @@ void rv_target_insert_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr
                     }
                     rv_register_write(&target.tr32.tdata1.value, CSR_TDATA1);
                     rv_register_write(&hardware_breakpoints[target.tr32.tselect].addr, CSR_TDATA2);
-                } else if (XLEN_RV64 == target.xlen) {
+                } else if (MXL_RV64 == target.misa.mxl) {
                     target.tr64.tselect = i;
                     rv_register_write((uint32_t*)&target.tr64.tselect, CSR_TSELECT);
                     target.tr64.tdata1.value = 0;
@@ -1143,10 +1051,10 @@ void rv_target_remove_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr
             if ((hardware_breakpoints[i].type == type) && 
                 (hardware_breakpoints[i].addr == addr) && 
                 (hardware_breakpoints[i].kind == kind)) {
-                if (XLEN_RV32 == target.xlen) {
+                if (MXL_RV32 == target.misa.mxl) {
                     target.tr32.tselect = i;
                     rv_register_write(&target.tr32.tselect, CSR_TSELECT);
-                } else if (XLEN_RV64 == target.xlen) {
+                } else if (MXL_RV64 == target.misa.mxl) {
                     target.tr64.tselect = i;
                     rv_register_write((uint32_t*)&target.tr64.tselect, CSR_TSELECT);
                 } else {
