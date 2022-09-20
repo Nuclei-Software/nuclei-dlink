@@ -754,8 +754,12 @@ void gdb_server_cmd_custom(void)
         uint32_t misa = rv_target_misa();
         sprintf(&rsp.data[rsp.len], "%08x:", misa);
         rsp.len += 9;
-        uint64_t vlenb;
-        rv_target_read_register(&vlenb, 3171);
+        // read vlenb reg
+        uint64_t vlenb, mstatus;
+        rv_target_read_register(&mstatus, 65+0x300);
+        mstatus |= 0x3 << 9;
+        rv_target_write_register(&mstatus, 65+0x300);
+        rv_target_read_register(&vlenb, 65+0xc22);
         sprintf(&rsp.data[rsp.len], "%016x;", vlenb);
         rsp.len += 17;
         xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
