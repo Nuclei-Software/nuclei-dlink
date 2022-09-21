@@ -41,6 +41,10 @@ const char *err_msg;
 uint32_t err_pc;
 rv_hardware_breakpoint_t hardware_breakpoints[RV_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM];
 rv_software_breakpoint_t software_breakpoints[RV_TARGET_CONFIG_SOFTWARE_BREAKPOINT_NUM];
+uint32_t rv_target_dr_post;
+uint32_t rv_target_dr_pre;
+uint32_t rv_target_ir_post;
+uint32_t rv_target_ir_pre;
 
 const char *rv_abstractcs_cmderr_str[8] = {
     "abs:0 (none)",
@@ -73,24 +77,24 @@ static void rv_dtm_sync(uint32_t reg)
 
     if (reg != last_reg) {
         temp_in[0] = reg;
-        rv_tap_shift_ir(temp_out, temp_in, 5);
+        rv_tap_shift_ir(temp_out, temp_in, 5, rv_target_ir_post, rv_target_ir_pre);
     }
     last_reg = reg;
     
     temp_in[0] = target.dmi.data;
     switch (reg) {
         case RV_DTM_JTAG_REG_IDCODE:
-            rv_tap_shift_dr(temp_out, temp_in, 32);
+            rv_tap_shift_dr(temp_out, temp_in, 32, rv_target_dr_post, rv_target_dr_pre);
             target.dtm.idcode.value = temp_out[0];
             break;
         case RV_DTM_JTAG_REG_DTMCS:
-            rv_tap_shift_dr(temp_out, temp_in, 32);
+            rv_tap_shift_dr(temp_out, temp_in, 32, rv_target_dr_post, rv_target_dr_pre);
             target.dtm.dtmcs.value = temp_out[0];
             break;
         case RV_DTM_JTAG_REG_DMI:
             temp_in[0] = (target.dmi.data << 2) | (target.dmi.op & 0x3);
             temp_in[1] = (target.dmi.data >> 30) | (target.dmi.address << 2);
-            rv_tap_shift_dr(temp_out, temp_in, 32 + 2 + target.dtm.dtmcs.abits);
+            rv_tap_shift_dr(temp_out, temp_in, 32 + 2 + target.dtm.dtmcs.abits, rv_target_dr_post, rv_target_dr_pre);
             target.dmi.op = temp_out[0] & 0x3;
             target.dmi.data = (temp_out[0] >> 2) | (temp_out[1] << 30);
             break;
@@ -480,6 +484,10 @@ void rv_target_init(void)
     err_flag = false;
     err_pc = 0;
     err_msg = "no error";
+    rv_target_dr_post = 0;
+    rv_target_dr_pre = 0;
+    rv_target_ir_post = 0;
+    rv_target_ir_pre = 0;
     target.misa.value = 0;
 
     rv_tap_init();
@@ -510,7 +518,7 @@ void rv_target_init_post(rv_target_error_t *err)
     rv_tap_reset(32);
 
     if (TARGET_INTERFACE_CJTAG == target.interface) {
-        rv_tap_oscan1_mode();
+        rv_tap_oscan1_mode(rv_target_dr_post, rv_target_dr_pre, rv_target_ir_post, rv_target_ir_pre);
     }
 
     target.dtm.idcode.value = 0;

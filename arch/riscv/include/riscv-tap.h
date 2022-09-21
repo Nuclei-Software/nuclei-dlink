@@ -18,15 +18,10 @@
  */
 #include <stdint.h>
 
-#define RV_TAP_DR_PRE   (0)
-#define RV_TAP_DR_POST  (0)
-#define RV_TAP_IR_PRE   (0)
-#define RV_TAP_IR_POST  (0)
-
 void rv_tap_init(void);
 void rv_tap_deinit(void);
 void rv_tap_reset(uint32_t len);
 void rv_tap_idle(uint32_t len);
-void rv_tap_shift_dr(uint32_t* out, uint32_t* in, uint32_t len);
-void rv_tap_shift_ir(uint32_t* out, uint32_t* in, uint32_t len);
-void rv_tap_oscan1_mode(void);
+void rv_tap_shift_dr(uint32_t* out, uint32_t* in, uint32_t len, uint32_t post, uint32_t pre);
+void rv_tap_shift_ir(uint32_t* out, uint32_t* in, uint32_t len, uint32_t post, uint32_t pre);
+void rv_tap_oscan1_mode(uint32_t dr_post, uint32_t dr_pre, uint32_t ir_post, uint32_t ir_pre);
