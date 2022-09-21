@@ -71,7 +71,6 @@ void gdb_server_cmd_P(void);
 void gdb_server_cmd_q(void);
 void gdb_server_cmd_Q(void);
 void gdb_server_cmd_qRcmd(void);
-void gdb_server_cmd_qSupported(void);
 void gdb_server_cmd_question_mark(void);
 void gdb_server_cmd_s(void);
 void gdb_server_cmd_v(void);
@@ -79,7 +78,6 @@ void gdb_server_cmd_custom(void);
 void gdb_server_cmd_vFlashDone(void);
 void gdb_server_cmd_vFlashErase(void);
 void gdb_server_cmd_vFlashWrite(void);
-void gdb_server_cmd_vMustReplyEmpty(void);
 void gdb_server_cmd_X(void);
 void gdb_server_cmd_z(void);
 void gdb_server_cmd_Z(void);
@@ -88,8 +86,6 @@ static void gdb_server_target_run(bool run);
 static void gdb_server_reply_ok(void);
 static void gdb_server_reply_empty(void);
 static void gdb_server_reply_err(int err);
-
-static void gdb_server_cmd_qxfer_memory_map_read(void);
 
 static void bin_to_hex(const uint8_t *bin, char *hex, uint32_t nbyte);
 static void uint32_to_hex_le(uint32_t data, char *hex);
@@ -207,72 +203,13 @@ void gdb_server_poll(void)
  */
 void gdb_server_cmd_q(void)
 {
-    if (strncmp(cmd.data, "qSupported:", 11) == 0) {
-        gdb_server_cmd_qSupported();
-    } else if (strncmp(cmd.data, "qXfer:memory-map:read::", 23) == 0) {
-        gdb_server_cmd_qxfer_memory_map_read();
-    } else if (strncmp(cmd.data, "qRcmd,", 6) == 0) {
+    if (strncmp(cmd.data, "qRcmd,", 6) == 0) {
         gdb_server_cmd_qRcmd();
     } else {
         gdb_server_reply_empty();
     }
 }
 
-
-/*
- * ‘qSupported [:gdbfeature [;gdbfeature]... ]’
- * Tell the remote stub about features supported by gdb, and query the stub for
- * features it supports.
- */
-void gdb_server_cmd_qSupported(void)
-{
-    const char qSupported_res[] =
-            "PacketSize=405"
-            ";QStartNoAckMode+"
-            ";qXfer:features:read+"
-            ";qXfer:memory-map:read+"
-            ";swbreak+"
-            ";hwbreak+"
-            ;
-
-    gdb_set_no_ack_mode(false);
-    strncpy(rsp.data, qSupported_res, GDB_PACKET_BUFF_SIZE);
-    rsp.len = strlen(qSupported_res);
-    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
-    gdb_server_connected();
-}
-
-/*
- * qXfer:memory-map:read::
- */
-static void gdb_server_cmd_qxfer_memory_map_read(void)
-{
-    uint32_t res_len;
-
-    res_len = 0;
-    res_len += snprintf(&rsp.data[0], GDB_PACKET_BUFF_SIZE, "l<memory-map>");
-    // TODO:
-    // ram
-    res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
-            "<memory type=\"%s\" start=\"0x%x\" length=\"0x%x\"", "ram", 0x00000000, 0x20000000);
-    res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
-            "/>");
-    // flash
-    res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
-            "<memory type=\"%s\" start=\"0x%x\" length=\"0x%x\"", "flash", 0x20000000, 0x10000000);
-    res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
-                    "><property name=\"blocksize\">0x%x</property></memory>", 0x10000);
-    // ram
-    res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
-            "<memory type=\"%s\" start=\"0x%x\" length=\"0x%x\"", "ram", 0x30000000, (~0) - 0x30000000 + 1);
-    res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
-            "/>");
-    res_len += snprintf(&rsp.data[res_len], GDB_PACKET_BUFF_SIZE - res_len,
-            "</memory-map>");
-
-    rsp.len = res_len;
-    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
-}
 /*
  * ‘qRcmd,command’
  * command (hex encoded) is passed to the local interpreter for execution.
@@ -651,8 +588,6 @@ void gdb_server_cmd_v(void)
         gdb_server_cmd_vFlashWrite();
     } else if (strncmp(cmd.data, "vFlashDone", 10) == 0) {
         gdb_server_cmd_vFlashDone();
-    } else if (strncmp(cmd.data, "vMustReplyEmpty", 15) == 0) {
-        gdb_server_cmd_vMustReplyEmpty();
     } else {
         gdb_server_reply_empty();
     }
@@ -720,23 +655,6 @@ void gdb_server_cmd_vFlashDone(void)
     gdb_server_reply_ok();
 }
 
-
-/*
- * ‘vMustReplyEmpty’
- * RV-LINK uses an unexpected vMustReplyEmpty response to inform the error
- */
-void gdb_server_cmd_vMustReplyEmpty(void)
-{
-    uint32_t len;
-    char c;
-
-    if (gdb_server_i.target_error == rv_target_error_none) {
-        gdb_server_reply_empty();
-    } else {
-        gdb_server_disconnected();
-    }
-}
-
 /*
  * ‘+’
  * Packets starting with ‘+’ custom command.
@@ -748,17 +666,24 @@ void gdb_server_cmd_custom(void)
         rv_target_set_interface(TARGET_INTERFACE_JTAG);
     } else if (strncmp(cmd.data, "+:set:interface:cjtag;", 16) == 0) {
         rv_target_set_interface(TARGET_INTERFACE_CJTAG);
-    } else if (strncmp(cmd.data, "+:read:misa:vlenb;", 18) == 0) {
-        strncpy(rsp.data, "-:read:misa:vlenb:", 18);
-        rsp.len = 18;
+    } else if (strncmp(cmd.data, "+:set:connect;", 14) == 0) {
+        gdb_set_no_ack_mode(false);
+        gdb_server_connected();
+    } else if (strncmp(cmd.data, "+:read:misa;", 12) == 0) {
+        strncpy(rsp.data, "-:read:misa:", 12);
+        rsp.len = 12;
         uint32_t misa = rv_target_misa();
-        sprintf(&rsp.data[rsp.len], "%08x:", misa);
+        sprintf(&rsp.data[rsp.len], "%08x;", misa);
         rsp.len += 9;
-        // read vlenb reg
+        xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+    } else if (strncmp(cmd.data, "+:read:vlenb;", 13) == 0) {
+        // set mstatus VS bit to enbale v
         uint64_t vlenb, mstatus;
         rv_target_read_register(&mstatus, 65+0x300);
         mstatus |= 0x3 << 9;
         rv_target_write_register(&mstatus, 65+0x300);
+        strncpy(rsp.data, "-:read:vlenb:", 13);
+        rsp.len = 13;
         rv_target_read_register(&vlenb, 65+0xc22);
         sprintf(&rsp.data[rsp.len], "%016x;", vlenb);
         rsp.len += 17;

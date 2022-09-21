@@ -100,6 +100,8 @@ void gdb_rsp_packet_vTask(void* pvParameters)
         snprintf(rsp.data, 3, "%02x", checksum);
         xQueueSend(gdb_txdata_xQueue, &rsp.data[0], portMAX_DELAY);
         xQueueSend(gdb_txdata_xQueue, &rsp.data[1], portMAX_DELAY);
+        ch = '|';
+        xQueueSend(gdb_txdata_xQueue, &ch, portMAX_DELAY);
     }
 }
 

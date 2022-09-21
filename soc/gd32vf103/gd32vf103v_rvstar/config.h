@@ -51,7 +51,7 @@
 #define RV_TARGET_CONFIG_REG_NUM           (33)
 
 #define GDB_DATA_CACHE_SIZE                 (1024)
-#define GDB_PACKET_BUFF_SIZE                (1024 + 8)
+#define GDB_PACKET_BUFF_SIZE                (1024 + 5)//PacketSize:0x405
 #define GDB_PACKET_BUFF_NUM                 (3)
 
 /* JTAG TCK pin definition */
