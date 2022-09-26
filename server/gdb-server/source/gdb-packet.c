@@ -77,10 +77,14 @@ void gdb_rsp_packet_vTask(void* pvParameters)
 {
     char ch;
     uint8_t checksum;
+    char temp[3];
     BaseType_t xReturned;
 
     for (;;) {
         xQueueReceive(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+        checksum = gdb_packet_checksum((const uint8_t*)&rsp.data, rsp.len);
+        /* 'checksum[0]' 'checksum[1]' '\0' */
+        snprintf(temp, 3, "%02x", checksum);
         if (no_ack_mode) {
             ch = '$';
             xQueueSend(gdb_txdata_xQueue, &ch, portMAX_DELAY);
@@ -95,11 +99,8 @@ void gdb_rsp_packet_vTask(void* pvParameters)
         }
         ch = '#';
         xQueueSend(gdb_txdata_xQueue, &ch, portMAX_DELAY);
-        checksum = gdb_packet_checksum((const uint8_t*)&rsp.data, rsp.len);
-        /* 'checksum[0]' 'checksum[1]' '\0' */
-        snprintf(rsp.data, 3, "%02x", checksum);
-        xQueueSend(gdb_txdata_xQueue, &rsp.data[0], portMAX_DELAY);
-        xQueueSend(gdb_txdata_xQueue, &rsp.data[1], portMAX_DELAY);
+        xQueueSend(gdb_txdata_xQueue, &temp[0], portMAX_DELAY);
+        xQueueSend(gdb_txdata_xQueue, &temp[1], portMAX_DELAY);
         ch = '|';
         xQueueSend(gdb_txdata_xQueue, &ch, portMAX_DELAY);
     }

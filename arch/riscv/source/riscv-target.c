@@ -18,6 +18,8 @@
  */
 #include "riscv-target.h"
 #include "riscv-tap.h"
+#include "encoding.h"
+#include "opcodes.h"
 #include "config.h"
 
 typedef struct {
@@ -27,6 +29,7 @@ typedef struct {
     rv_dtm_t dtm;
     rv_dmi_t dmi;
     rv_misa_rv32_t misa;
+    uint64_t vlenb;
     rv_target_interface_t interface;
 } rv_target_t;
 
@@ -34,7 +37,7 @@ static rv_target_t target;
 rv_dcsr_t dcsr;
 uint64_t dpc;
 
-const uint32_t zero = 0; 
+uint32_t zero = 0; 
 uint32_t result;
 bool err_flag;
 const char *err_msg;
@@ -171,7 +174,7 @@ static void rv_dmi_write(uint32_t addr, uint32_t in)
 static void rv_register_read(uint32_t *reg, uint32_t regno)
 {
     uint32_t mxl;
-    if (regno == CSR_DCSR) {
+    if (regno == (RV_REG_DCSR - RV_REG_CSR0)) {
         mxl = MXL_RV32;
     } else {
         mxl = target.misa.mxl;
@@ -183,14 +186,12 @@ static void rv_register_read(uint32_t *reg, uint32_t regno)
         target.dm.command.reg.aarsize = 2;
     } else if (MXL_RV64 == mxl) {
         target.dm.command.reg.aarsize = 3;
-    } else {
-        //TODO:
-        return;
     }
     target.dm.command.reg.transfer = 1;
     target.dm.command.reg.regno = regno;
     rv_dmi_write(RV_DM_ABSTRACT_COMMAND, target.dm.command.value);
 
+    do {
     rv_dmi_read(RV_DM_ABSTRACT_CONTROL_AND_STATUS, &target.dm.abstractcs.value);
     if (target.dm.abstractcs.cmderr) {
         rv_set_error(rv_abstractcs_cmderr_str[target.dm.abstractcs.cmderr]);
@@ -198,7 +199,9 @@ static void rv_register_read(uint32_t *reg, uint32_t regno)
         target.dm.abstractcs.cmderr = 0x7;
         rv_dmi_write(RV_DM_ABSTRACT_CONTROL_AND_STATUS, target.dm.abstractcs.value);
         *reg = 0xffffffff;
-    } else {
+        }
+    } while(target.dm.abstractcs.busy);
+
         if (MXL_RV32 == mxl) {
             rv_dmi_read(RV_DM_ABSTRACT_DATA0, &target.dm.data[0]);
             reg[0] = target.dm.data[0];
@@ -207,17 +210,13 @@ static void rv_register_read(uint32_t *reg, uint32_t regno)
             reg[0] = target.dm.data[0];
             rv_dmi_read(RV_DM_ABSTRACT_DATA1, &target.dm.data[1]);
             reg[1] = target.dm.data[1];
-        } else {
-            //TODO:
-            return;
         }
     }
-}
 
 static void rv_register_write(uint32_t *reg, uint32_t regno)
 {
     uint32_t mxl;
-    if (regno == CSR_DCSR) {
+    if (regno == (RV_REG_DCSR - RV_REG_CSR0)) {
         mxl = MXL_RV32;
     } else {
         mxl = target.misa.mxl;
@@ -231,9 +230,6 @@ static void rv_register_write(uint32_t *reg, uint32_t regno)
         rv_dmi_write(RV_DM_ABSTRACT_DATA0, target.dm.data[0]);
         target.dm.data[1] = reg[1];
         rv_dmi_write(RV_DM_ABSTRACT_DATA1, target.dm.data[1]);
-    } else {
-        //TODO:
-        return;
     }
 
     target.dm.command.value = 0;
@@ -242,15 +238,13 @@ static void rv_register_write(uint32_t *reg, uint32_t regno)
         target.dm.command.reg.aarsize = 2;
     } else if (MXL_RV64 == mxl) {
         target.dm.command.reg.aarsize = 3;
-    } else {
-        //TODO:
-        return;
     }
     target.dm.command.reg.write = 1;
     target.dm.command.reg.transfer = 1;
     target.dm.command.reg.regno = regno;
     rv_dmi_write(RV_DM_ABSTRACT_COMMAND, target.dm.command.value);
 
+    do {
     rv_dmi_read(RV_DM_ABSTRACT_CONTROL_AND_STATUS, &target.dm.abstractcs.value);
     if (target.dm.abstractcs.cmderr) {
         rv_set_error(rv_abstractcs_cmderr_str[target.dm.abstractcs.cmderr]);
@@ -258,6 +252,148 @@ static void rv_register_write(uint32_t *reg, uint32_t regno)
         target.dm.abstractcs.cmderr = 0x7;
         rv_dmi_write(RV_DM_ABSTRACT_CONTROL_AND_STATUS, target.dm.abstractcs.value);
     }
+    } while(target.dm.abstractcs.busy);
+}
+
+static void rv_prep_for_register_access(uint32_t regno)
+{
+    uint64_t mstatus;
+    if ((regno >= RV_REG_FT0) && (regno <= RV_REG_FT11)) {
+        rv_target_read_register(&mstatus, RV_REG_MSTATUS);
+        mstatus |= MSTATUS_FS;
+        rv_target_write_register(&mstatus, RV_REG_MSTATUS);
+    }
+    if (((regno >= RV_REG_V0) && (regno <= RV_REG_V31)) || 
+        ((regno >= RV_REG_VSTART) && (regno <= RV_REG_VCSR)) ||
+        ((regno >= RV_REG_VL) && (regno <= RV_REG_VLENB))) {
+        rv_target_read_register(&mstatus, RV_REG_MSTATUS);
+        mstatus |= MSTATUS_VS;
+        rv_target_write_register(&mstatus, RV_REG_MSTATUS);
+    }
+}
+
+static void rv_cleanup_after_register_access(uint32_t regno)
+{
+    uint64_t mstatus;
+    if ((regno >= RV_REG_FT0) && (regno <= RV_REG_FT11)) {
+        rv_target_read_register(&mstatus, RV_REG_MSTATUS);
+        mstatus &= ~MSTATUS_FS;
+        rv_target_write_register(&mstatus, RV_REG_MSTATUS);
+    }
+    if (((regno >= RV_REG_V0) && (regno <= RV_REG_V31)) || 
+        ((regno >= RV_REG_VSTART) && (regno <= RV_REG_VCSR)) ||
+        ((regno >= RV_REG_VL) && (regno <= RV_REG_VLENB))) {
+        rv_target_read_register(&mstatus, RV_REG_MSTATUS);
+        mstatus &= ~MSTATUS_VS;
+        rv_target_write_register(&mstatus, RV_REG_MSTATUS);
+    }
+}
+
+void rv_program_exec(uint32_t* inst, uint32_t num)
+{
+    uint64_t saved_registers[RV_REG_T6];
+    for (int i = RV_REG_ZERO; i <= RV_REG_T6; i++) {
+        rv_target_read_register(&saved_registers[i], i);
+    }
+
+    for (int i = 0; i < num; i++) {
+        rv_dmi_write(RV_DM_PROGRAM_BUFFER0 + i, inst[i]);
+    }
+    target.dm.command.value = 0;
+    target.dm.command.reg.aarsize = 2;
+    target.dm.command.reg.postexec = 1;
+    target.dm.command.reg.transfer = 0;
+    target.dm.command.reg.regno = 0x1000;
+    rv_dmi_write(RV_DM_ABSTRACT_COMMAND, target.dm.command.value);
+
+    do {
+    rv_dmi_read(RV_DM_ABSTRACT_CONTROL_AND_STATUS, &target.dm.abstractcs.value);
+    if (target.dm.abstractcs.cmderr) {
+        rv_set_error(rv_abstractcs_cmderr_str[target.dm.abstractcs.cmderr]);
+        target.dm.abstractcs.value = 0;
+        target.dm.abstractcs.cmderr = 0x7;
+        rv_dmi_write(RV_DM_ABSTRACT_CONTROL_AND_STATUS, target.dm.abstractcs.value);
+    }
+    } while(target.dm.abstractcs.busy);
+
+    for (int i = RV_REG_ZERO; i <= RV_REG_T6; i++) {
+        rv_target_write_register(&saved_registers[i], i);
+    }
+}
+
+static void rv_register_read_buf(uint32_t *reg, uint32_t regno)
+{
+    uint64_t save_fp, save_vtype, save_vl;
+    uint64_t xlen, debug_vl, encoded_vsew;
+    uint32_t inst[3];
+    uint32_t inst_num;
+
+    xlen = target.misa.mxl * 32;
+    rv_target_read_register(&save_fp, RV_REG_FP);
+
+    //prep for vector access
+    rv_target_read_register(&save_vtype, RV_REG_VTYPE);
+    rv_target_read_register(&save_vl, RV_REG_VL);
+    if (MXL_RV32 == target.misa.mxl) {
+        encoded_vsew = 2 << 3;
+    } else if (MXL_RV64 == target.misa.mxl) {
+        encoded_vsew = 3 << 3;
+    }
+    rv_target_write_register(&encoded_vsew, RV_REG_VTYPE);
+    debug_vl = ((target.vlenb * 8) + xlen - 1) / xlen;
+    rv_target_write_register(&debug_vl, RV_REG_VL);
+
+    inst[0] = vmv_x_s(RV_REG_FP, regno);
+    inst[1] = vslide1down_vx(regno, regno, RV_REG_FP, true);
+    inst[2] = ebreak();
+    inst_num = 3;
+    for (int i = 0; i < debug_vl; i++) {
+        rv_program_exec(inst, inst_num);
+        rv_target_read_register(reg + (target.misa.mxl * i), RV_REG_FP);
+    }
+
+    //cleanup after vector access
+    rv_target_write_register(&save_vtype, RV_REG_VTYPE);
+    rv_target_write_register(&save_vl, RV_REG_VL);
+
+    rv_target_write_register(&save_fp, RV_REG_FP);
+}
+
+static void rv_register_write_buf(uint32_t *reg, uint32_t regno)
+{
+    uint64_t save_fp, save_vtype, save_vl;
+    uint64_t xlen, debug_vl, encoded_vsew;
+    uint32_t inst[3];
+    uint32_t inst_num;
+
+    xlen = target.misa.mxl * 32;
+    rv_target_read_register(&save_fp, RV_REG_FP);
+
+    //prep for vector access
+    rv_target_read_register(&save_vtype, RV_REG_VTYPE);
+    rv_target_read_register(&save_vl, RV_REG_VL);
+    if (MXL_RV32 == target.misa.mxl) {
+        encoded_vsew = 2 << 3;
+    } else if (MXL_RV64 == target.misa.mxl) {
+        encoded_vsew = 3 << 3;
+    }
+    rv_target_write_register(&encoded_vsew, RV_REG_VTYPE);
+    debug_vl = ((target.vlenb * 8) + xlen - 1) / xlen;
+    rv_target_write_register(&debug_vl, RV_REG_VL);
+
+    inst[0] = vslide1down_vx(regno, regno, RV_REG_FP, true);
+    inst[1] = ebreak();
+    inst_num = 2;
+    for (int i = 0; i < debug_vl; i++) {
+        rv_target_write_register(reg + (target.misa.mxl * i), RV_REG_FP);
+        rv_program_exec(inst, inst_num);
+    }
+
+    //cleanup after vector access
+    rv_target_write_register(&save_vtype, RV_REG_VTYPE);
+    rv_target_write_register(&save_vl, RV_REG_VL);
+
+    rv_target_write_register(&save_fp, RV_REG_FP);
 }
 
 static void rv_memory_read(uint8_t *mem, uint64_t addr, uint32_t len, uint32_t aamsize)
@@ -489,6 +625,7 @@ void rv_target_init(void)
     rv_target_ir_post = 0;
     rv_target_ir_pre = 0;
     target.misa.value = 0;
+    target.vlenb = 0;
 
     rv_tap_init();
 }
@@ -506,6 +643,11 @@ uint32_t rv_target_misa(void)
 uint32_t rv_target_mxl(void)
 {
     return target.misa.mxl;
+}
+
+uint64_t rv_target_vlenb(void)
+{
+    return target.vlenb;
 }
 
 void rv_target_set_interface(rv_target_interface_t interface)
@@ -565,10 +707,10 @@ void rv_target_init_after_halted(rv_target_error_t *err)
     rv_misa_rv32_t misa32;
     rv_misa_rv64_t misa64;
     target.misa.mxl = MXL_RV64;
-    rv_register_read((uint32_t*)&misa64, CSR_MISA);
+    rv_target_read_register(&misa64, RV_REG_MISA);
     if (err_flag) {
         target.misa.mxl = MXL_RV32;
-        rv_register_read((uint32_t*)&misa32, CSR_MISA);
+        rv_target_read_register(&misa32, RV_REG_MISA);
         if (err_flag) {
             *err = rv_target_error_debug_module;
             return;
@@ -589,7 +731,9 @@ void rv_target_init_after_halted(rv_target_error_t *err)
         target.misa.mxl = misa64.mxl;
     }
 
-    rv_register_read(&dcsr.value, CSR_DCSR);
+    rv_target_read_register(&target.vlenb, RV_REG_VLENB);
+
+    rv_target_read_register(&dcsr.value, RV_REG_DCSR);
     if (dcsr.xdebugver != 4) {
         *err = rv_target_error_compat;
         return;
@@ -601,14 +745,14 @@ void rv_target_init_after_halted(rv_target_error_t *err)
     dcsr.ebreakm = 1;
     dcsr.ebreaks = 1;
     dcsr.ebreaku = 1;
-    rv_register_write(&dcsr.value, CSR_DCSR);
+    rv_target_write_register(&dcsr.value, RV_REG_DCSR);
 
     /*
      * clear all hardware breakpoints
      */
     for(i = 0; i < RV_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM; i++) {
-        rv_register_write(&i, CSR_TSELECT);
-        rv_register_write((uint32_t*)&zero, CSR_TDATA1);
+        rv_target_write_register(&i, RV_REG_TSELECT);
+        rv_target_write_register(&zero, RV_REG_TDATA1);
     }
 }
 
@@ -617,11 +761,11 @@ void rv_target_fini_pre(void)
     /*
      * ebreak instructions in X-mode behave as described in the Privileged Spec.
      */
-    rv_register_read(&dcsr.value, CSR_DCSR);
+    rv_target_read_register(&dcsr.value, RV_REG_DCSR);
     dcsr.ebreakm = 0;
     dcsr.ebreaks = 0;
     dcsr.ebreaku = 0;
-    rv_register_write(&dcsr.value, CSR_DCSR);
+    rv_target_write_register(&dcsr.value, RV_REG_DCSR);
 
     /*
      * Disable debug module
@@ -636,15 +780,15 @@ void rv_target_read_core_registers(void *regs)
 
     for(i = 1; i < 32; i++) {
         if (MXL_RV32 == target.misa.mxl) {
-            rv_register_read((uint32_t*)regs + i, i + 0x1000);
+            rv_target_read_register((uint32_t*)regs + i, i);
         } else if (MXL_RV64 == target.misa.mxl) {
-            rv_register_read((uint32_t*)((uint64_t*)regs + i), i + 0x1000);
+            rv_target_read_register((uint64_t*)regs + i, i);
         }
     }
     if (MXL_RV32 == target.misa.mxl) {
-        rv_register_read((uint32_t*)regs + 32, CSR_DPC);
+        rv_target_read_register((uint32_t*)regs + 32, RV_REG_DPC);
     } else if (MXL_RV64 == target.misa.mxl) {
-        rv_register_read((uint32_t*)((uint64_t*)regs + 32), CSR_DPC);
+        rv_target_read_register((uint64_t*)regs + 32, RV_REG_DPC);
     }
 }
 
@@ -654,51 +798,59 @@ void rv_target_write_core_registers(void *regs)
 
     for(i = 1; i < 32; i++) {
         if (MXL_RV32 == target.misa.mxl) {
-            rv_register_write((uint32_t*)regs + i, i + 0x1000);
+            rv_target_write_register((uint32_t*)regs + i, i);
         } else if (MXL_RV64 == target.misa.mxl) {
-            rv_register_write((uint32_t*)((uint64_t*)regs + i), i + 0x1000);
+            rv_target_write_register((uint64_t*)regs + i, i);
         }
     }
     if (MXL_RV32 == target.misa.mxl) {
-        rv_register_write((uint32_t*)regs + 32, CSR_DPC);
+        rv_target_write_register((uint32_t*)regs + 32, RV_REG_DPC);
     } else if (MXL_RV64 == target.misa.mxl) {
-        rv_register_write((uint32_t*)((uint64_t*)regs + 32), CSR_DPC);
+        rv_target_write_register((uint64_t*)regs + 32, RV_REG_DPC);
     }
 }
 
 void rv_target_read_register(void *reg, uint32_t regno)
 {
-    if (regno <= 31) { // GPRs
-        rv_register_read((uint32_t*)reg, regno + 0x1000);
-    } else if (regno == 32) { // PC
-        rv_register_read((uint32_t*)reg, CSR_DPC);
-    } else if (regno <= 64) { // FPRs
-        rv_register_read((uint32_t*)reg, regno + 0x1000 - 1);
-    } else if (regno <= (4095 + 65)) { // CSRs
-        rv_register_read((uint32_t*)reg, regno - 65);
-    } else if (regno == 4161) {  // priv
-        rv_register_read(&dcsr.value, CSR_DCSR);
+    rv_prep_for_register_access(regno);
+    if (regno < RV_REG_PC) {
+        rv_register_read((uint32_t*)reg, 0x1000 + regno - RV_REG_ZERO);
+    } else if (regno == RV_REG_PC) {
+        rv_register_read((uint32_t*)reg, RV_REG_DPC - RV_REG_CSR0);
+    } else if (regno <= RV_REG_FT11) {
+        rv_register_read((uint32_t*)reg, 0x1020 + regno - RV_REG_FT0);
+    } else if (regno <= (4095 + RV_REG_CSR0)) {
+        rv_register_read((uint32_t*)reg, regno - RV_REG_CSR0);
+    } else if (regno == RV_REG_PRIV) {
+        rv_register_read(&dcsr.value, RV_REG_DCSR - RV_REG_CSR0);
         *(uint32_t*)reg = dcsr.prv;
+    } else if (regno <= RV_REG_V31) {
+        rv_register_read_buf((uint32_t*)reg, regno - RV_REG_V0);
     } else {
         *(uint32_t*)reg = 0xffffffff;
     }
+    rv_cleanup_after_register_access(regno);
 }
 
 void rv_target_write_register(void *reg, uint32_t regno)
 {
-    if (regno <= 31) { // GPRs
-        rv_register_write((uint32_t*)reg, regno + 0x1000);
-    } else if (regno == 32) { // PC
-        rv_register_write((uint32_t*)reg, CSR_DPC);
-    } else if (regno <= 64) { // FPRs
-        rv_register_write((uint32_t*)reg, regno + 0x1000 - 1);
-    } else if (regno <= (4095 + 65)) { // CSRs
-        rv_register_write((uint32_t*)reg, regno - 65);
-    } else if (regno == 4161) {  // priv
-        rv_register_read(&dcsr.value, CSR_DCSR);
+    rv_prep_for_register_access(regno);
+    if (regno < RV_REG_PC) {
+        rv_register_write((uint32_t*)reg, 0x1000 + regno - RV_REG_ZERO);
+    } else if (regno == RV_REG_PC) {
+        rv_register_write((uint32_t*)reg, RV_REG_DPC - RV_REG_CSR0);
+    } else if (regno <= RV_REG_FT11) {
+        rv_register_write((uint32_t*)reg, 0x1020 + regno - RV_REG_FT0);
+    } else if (regno <= (4095 + RV_REG_CSR0)) {
+        rv_register_write((uint32_t*)reg, regno - RV_REG_CSR0);
+    } else if (regno == RV_REG_PRIV) {
+        rv_register_read(&dcsr.value, RV_REG_DCSR - RV_REG_CSR0);
         dcsr.prv = *(uint32_t*)reg;
-        rv_register_write(&dcsr.value, CSR_DCSR);
+        rv_register_write(&dcsr.value, RV_REG_DCSR - RV_REG_CSR0);
+    } else if (regno <= RV_REG_V31) {
+        rv_register_write_buf((uint32_t*)reg, regno - RV_REG_V0);
     }
+    rv_cleanup_after_register_access(regno);
 }
 
 void rv_target_read_memory(uint8_t* mem, uint64_t addr, uint32_t len)
@@ -779,7 +931,7 @@ void rv_target_halt_check(rv_target_halt_info_t* halt_info)
 
     rv_dmi_read(RV_DM_DEBUG_MODULE_STATUS, &target.dm.dmstatus.value);
     if (target.dm.dmstatus.allhalted) {
-        rv_register_read(&dcsr.value, CSR_DCSR);
+        rv_target_read_register(&dcsr.value, RV_REG_DCSR);
         if (dcsr.cause == RV_CSR_DCSR_CAUSE_EBREAK) {
             halt_info->reason = rv_target_halt_reason_software_breakpoint;
         } else if (dcsr.cause == RV_CSR_DCSR_CAUSE_TRIGGER) {
@@ -789,17 +941,14 @@ void rv_target_halt_check(rv_target_halt_info_t* halt_info)
                 if (hardware_breakpoints[i].type != rv_target_breakpoint_type_unused) {
                     if (MXL_RV32 == target.misa.mxl) {
                         target.tr32.tselect = i;
-                        rv_register_write(&target.tr32.tselect, CSR_TSELECT);
-                        rv_register_read(&target.tr32.tdata1.value, CSR_TDATA1);
+                        rv_target_write_register(&target.tr32.tselect, RV_REG_TSELECT);
+                        rv_target_read_register(&target.tr32.tdata1.value, RV_REG_TDATA1);
                         mc_hit = target.tr32.tdata1.mc.hit;
                     } if (MXL_RV64 == target.misa.mxl) {
                         target.tr64.tselect = i;
-                        rv_register_write((uint32_t*)&target.tr64.tselect, CSR_TSELECT);
-                        rv_register_read((uint32_t*)&target.tr64.tdata1.value, CSR_TDATA1);
+                        rv_target_write_register((uint32_t*)&target.tr64.tselect, RV_REG_TSELECT);
+                        rv_target_read_register(&target.tr64.tdata1.value, RV_REG_TDATA1);
                         mc_hit = target.tr64.tdata1.mc.hit;
-                    } else {
-                        //TODO:
-                        return;
                     }
                     if (mc_hit) {
                         if (hardware_breakpoints[i].type == rv_target_breakpoint_type_hardware) {
@@ -821,7 +970,7 @@ void rv_target_halt_check(rv_target_halt_info_t* halt_info)
                 }
             }
 #endif
-            rv_register_read((uint32_t*)&dpc, CSR_DPC);
+            rv_target_read_register(&dpc, RV_REG_DPC);
             for(i = 0; i < RV_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM; i++) {
                 if (hardware_breakpoints[i].type == rv_target_breakpoint_type_hardware) {
                     if (hardware_breakpoints[i].addr == dpc) {
@@ -848,7 +997,7 @@ void rv_target_halt_check(rv_target_halt_info_t* halt_info)
                 if (has_watchpoint) {
                     rv_memory_read((uint8_t*)&wp_inst, dpc, 4, RV_AAMSIZE_16BITS);
                     rv_parse_watchpoint_inst(wp_inst, &wp_addr_base_regno, &wp_addr_offset);
-                    rv_register_read(&(halt_info->addr), wp_addr_base_regno + 0x1000);
+                    rv_target_read_register(&(halt_info->addr), wp_addr_base_regno);
                     halt_info->addr += wp_addr_offset;
                     if (halt_info->addr != 0xffffffff) {
                         for(i = 0; i < RV_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM; i++) {
@@ -878,9 +1027,9 @@ void rv_target_halt_check(rv_target_halt_info_t* halt_info)
 
 void rv_target_resume(void)
 {
-    rv_register_read(&dcsr.value, CSR_DCSR);
+    rv_target_read_register(&dcsr.value, RV_REG_DCSR);
     dcsr.step = 0;
-    rv_register_write(&dcsr.value, CSR_DCSR);
+    rv_target_write_register(&dcsr.value, RV_REG_DCSR);
 
     target.dm.dmcontrol.value = 0;
     target.dm.dmcontrol.resumereq = 1;
@@ -890,9 +1039,9 @@ void rv_target_resume(void)
 
 void rv_target_step(void)
 {
-    rv_register_read(&dcsr.value, CSR_DCSR);
+    rv_target_read_register(&dcsr.value, RV_REG_DCSR);
     dcsr.step = 1;
-    rv_register_write(&dcsr.value, CSR_DCSR);
+    rv_target_write_register(&dcsr.value, RV_REG_DCSR);
 
     target.dm.dmcontrol.value = 0;
     target.dm.dmcontrol.resumereq = 1;
@@ -935,7 +1084,7 @@ void rv_target_insert_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr
                 hardware_breakpoints[i].kind = kind;
                 if (MXL_RV32 == target.misa.mxl) {
                     target.tr32.tselect = i;
-                    rv_register_write(&target.tr32.tselect, CSR_TSELECT);
+                    rv_target_write_register(&target.tr32.tselect, RV_REG_TSELECT);
                     target.tr32.tdata1.value = 0;
                     target.tr32.tdata1.mc.type = 2;
                     target.tr32.tdata1.mc.dmode = 1;
@@ -973,11 +1122,11 @@ void rv_target_insert_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr
                         default:
                             break;
                     }
-                    rv_register_write(&target.tr32.tdata1.value, CSR_TDATA1);
-                    rv_register_write(&hardware_breakpoints[target.tr32.tselect].addr, CSR_TDATA2);
+                    rv_target_write_register(&target.tr32.tdata1.value, RV_REG_TDATA1);
+                    rv_target_write_register(&hardware_breakpoints[target.tr32.tselect].addr, RV_REG_TDATA2);
                 } else if (MXL_RV64 == target.misa.mxl) {
                     target.tr64.tselect = i;
-                    rv_register_write((uint32_t*)&target.tr64.tselect, CSR_TSELECT);
+                    rv_target_write_register(&target.tr64.tselect, RV_REG_TSELECT);
                     target.tr64.tdata1.value = 0;
                     target.tr64.tdata1.mc.type = 2;
                     target.tr64.tdata1.mc.dmode = 1;
@@ -1015,11 +1164,8 @@ void rv_target_insert_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr
                         default:
                             break;
                     }
-                    rv_register_write((uint32_t*)&target.tr64.tdata1.value, CSR_TDATA1);
-                    rv_register_write(&hardware_breakpoints[target.tr64.tselect].addr, CSR_TDATA2);
-                } else {
-                    //TODO:
-                    return;
+                    rv_target_write_register(&target.tr64.tdata1.value, RV_REG_TDATA1);
+                    rv_target_write_register(&hardware_breakpoints[target.tr64.tselect].addr, RV_REG_TDATA2);
                 }
                 break;
             }
@@ -1061,15 +1207,12 @@ void rv_target_remove_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr
                 (hardware_breakpoints[i].kind == kind)) {
                 if (MXL_RV32 == target.misa.mxl) {
                     target.tr32.tselect = i;
-                    rv_register_write(&target.tr32.tselect, CSR_TSELECT);
+                    rv_target_write_register(&target.tr32.tselect, RV_REG_TSELECT);
                 } else if (MXL_RV64 == target.misa.mxl) {
                     target.tr64.tselect = i;
-                    rv_register_write((uint32_t*)&target.tr64.tselect, CSR_TSELECT);
-                } else {
-                    //TODO:
-                    return;
+                    rv_target_write_register(&target.tr64.tselect, RV_REG_TSELECT);
                 }
-                rv_register_write((uint32_t*)&zero, CSR_TDATA1);
+                rv_target_write_register(&zero, RV_REG_TDATA1);
                 hardware_breakpoints[i].type = rv_target_breakpoint_type_unused;
                 break;
             }

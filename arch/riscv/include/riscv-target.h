@@ -217,6 +217,7 @@ void rv_target_init(void);
 void rv_target_deinit(void);
 uint32_t rv_target_misa(void);
 uint32_t rv_target_mxl(void);
+uint64_t rv_target_vlenb(void);
 void rv_target_set_interface(rv_target_interface_t interface);
 void rv_target_init_post(rv_target_error_t *err);
 void rv_target_init_after_halted(rv_target_error_t *err);
