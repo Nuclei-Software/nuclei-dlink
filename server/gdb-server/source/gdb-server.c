@@ -31,6 +31,7 @@ typedef struct gdb_server_s
 {
     bool target_running;
     bool gdb_connected;
+    bool restore_reg_flag;
     rv_target_halt_info_t halt_info;
     rv_target_error_t target_error;
     
@@ -43,12 +44,6 @@ typedef struct gdb_server_s
     uint64_t reg_tmp[4];
     uint32_t reg_tmp_num;
 
-    gdb_server_tid_t tid_g;
-    gdb_server_tid_t tid_G;
-    gdb_server_tid_t tid_m;
-    gdb_server_tid_t tid_M;
-    gdb_server_tid_t tid_c;
-
     rv_target_breakpoint_type_t breakpoint_type;
     uint64_t breakpoint_addr;
     uint32_t breakpoint_kind;
@@ -57,35 +52,32 @@ typedef struct gdb_server_s
 
 static gdb_server_t gdb_server_i;
 
-void gdb_server_connected(void);
-void gdb_server_disconnected(void);
-void gdb_server_cmd_c(void);
 void gdb_server_cmd_ctrl_c(void);
+void gdb_server_cmd_q(void);
+void gdb_server_cmd_qRcmd(void);
+void gdb_server_cmd_Q(void);
 void gdb_server_cmd_g(void);
 void gdb_server_cmd_G(void);
-void gdb_server_cmd_H(void);
 void gdb_server_cmd_k(void);
+void gdb_server_cmd_c(void);
 void gdb_server_cmd_m(void);
 void gdb_server_cmd_M(void);
+void gdb_server_cmd_X(void);
 void gdb_server_cmd_p(void);
 void gdb_server_cmd_P(void);
-void gdb_server_cmd_q(void);
-void gdb_server_cmd_Q(void);
-void gdb_server_cmd_qRcmd(void);
-void gdb_server_cmd_question_mark(void);
 void gdb_server_cmd_s(void);
-void gdb_server_cmd_v(void);
-void gdb_server_cmd_custom(void);
-void gdb_server_cmd_vFlashDone(void);
-void gdb_server_cmd_vFlashErase(void);
-void gdb_server_cmd_vFlashWrite(void);
-void gdb_server_cmd_X(void);
 void gdb_server_cmd_z(void);
 void gdb_server_cmd_Z(void);
+void gdb_server_cmd_custom(void);
+void gdb_server_cmd_custom_set(const char* data);
+void gdb_server_cmd_custom_read(const char* data);
+void gdb_server_cmd_custom_algorithm(const char* data);
+
+void gdb_server_connected(void);
+void gdb_server_disconnected(void);
 
 static void gdb_server_target_run(bool run);
 static void gdb_server_reply_ok(void);
-static void gdb_server_reply_empty(void);
 static void gdb_server_reply_err(int err);
 
 static void bin_to_hex(const uint8_t *bin, char *hex, uint32_t nbyte);
@@ -96,13 +88,11 @@ static void hex_to_uint32_le(const char *hex, uint32_t *data);
 static void hex_to_uint64_le(const char *hex, uint64_t *data);
 static uint32_t bin_decode(const uint8_t* xbin, uint8_t* bin, uint32_t xbin_len);
 
-
 void gdb_server_init(void)
 {
     gdb_server_target_run(false);
     gdb_server_i.gdb_connected = false;
 }
-
 
 void gdb_server_poll(void)
 {
@@ -129,7 +119,11 @@ void gdb_server_poll(void)
                 rv_target_halt_check(&gdb_server_i.halt_info);
                 if (gdb_server_i.halt_info.reason != rv_target_halt_reason_running) {
                     gdb_server_target_run(false);
-
+                    if (gdb_server_i.restore_reg_flag) {
+                        /* Restore registers */
+                        rv_target_write_core_registers(gdb_server_i.regs);
+                        gdb_server_i.restore_reg_flag = false;
+                    }
                     if (gdb_server_i.halt_info.reason == rv_target_halt_reason_other) {
                         strncpy(rsp.data, "T05", GDB_PACKET_BUFF_SIZE);
                     } else if (gdb_server_i.halt_info.reason == rv_target_halt_reason_write_watchpoint) {
@@ -155,10 +149,6 @@ void gdb_server_poll(void)
                     gdb_server_cmd_q();
                 } else if (c == 'Q') {
                     gdb_server_cmd_Q();
-                } else if (c == 'H') {
-                    gdb_server_cmd_H();
-                } else if (c == '?') {
-                    gdb_server_cmd_question_mark();
                 } else if (c == 'g') {
                     gdb_server_cmd_g();
                 } else if (c == 'G') {
@@ -183,18 +173,21 @@ void gdb_server_poll(void)
                     gdb_server_cmd_z();
                 } else if (c == 'Z') {
                     gdb_server_cmd_Z();
-                } else if (c == 'v') {
-                    gdb_server_cmd_v();
                 } else if (c == '+') {
                     gdb_server_cmd_custom();
-                } else {
-                    gdb_server_reply_empty();
                 }
             }
         }
     }
 }
 
+/*
+ * Ctrl+C
+ */
+void gdb_server_cmd_ctrl_c(void)
+{
+    rv_target_halt();
+}
 
 /*
  * ‘q name params...’
@@ -204,8 +197,6 @@ void gdb_server_cmd_q(void)
 {
     if (strncmp(cmd.data, "qRcmd,", 6) == 0) {
         gdb_server_cmd_qRcmd();
-    } else {
-        gdb_server_reply_empty();
     }
 }
 
@@ -248,7 +239,6 @@ void gdb_server_cmd_qRcmd(void)
     }
 }
 
-
 /*
  * ‘Q name params...’
  * General query (‘q’) and set (‘Q’).
@@ -258,56 +248,8 @@ void gdb_server_cmd_Q(void)
     if (strncmp(cmd.data, "QStartNoAckMode", 15) == 0) {
         gdb_server_reply_ok();
         gdb_set_no_ack_mode(true);
-    } else {
-        gdb_server_reply_empty();
     }
 }
-
-
-/*
- * ‘H op thread-id’
- * Set thread for subsequent operations (‘m’, ‘M’, ‘g’, ‘G’, et.al.).
- */
-void gdb_server_cmd_H(void)
-{
-    unsigned int n;
-    char ch;
-    gdb_server_tid_t tid;
-
-    ch = cmd.data[1];
-    if (ch == 'g' || ch == 'G' || ch == 'm' || ch == 'M' || ch == 'c') {
-        sscanf(&cmd.data[2], "%x", &n);
-        gdb_server_reply_ok();
-
-        tid = (gdb_server_tid_t)n;
-        if (ch == 'g') {
-            gdb_server_i.tid_g = tid;
-        } else if (ch == 'G') {
-            gdb_server_i.tid_G = tid;
-        } else if (ch == 'm') {
-            gdb_server_i.tid_m = tid;
-        } else if (ch == 'M') {
-            gdb_server_i.tid_M = tid;
-        } else {
-            gdb_server_i.tid_c = tid;
-        }
-    } else {
-        gdb_server_reply_empty();
-    }
-}
-
-
-/*
- * ‘?’
- * Indicate the reason the target halted. The reply is the same as for step and continue.
- */
-void gdb_server_cmd_question_mark(void)
-{
-    strncpy(rsp.data, "S02", GDB_PACKET_BUFF_SIZE);
-    rsp.len = 3;
-    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
-}
-
 
 /*
  * ‘g’
@@ -334,7 +276,6 @@ void gdb_server_cmd_g(void)
     xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 
-
 /*
  * ‘G XX...’
  * Write general registers.
@@ -356,6 +297,102 @@ void gdb_server_cmd_G(void)
     gdb_server_reply_ok();
 }
 
+/*
+ * ‘k’
+ * Kill request.
+ */
+void gdb_server_cmd_k(void)
+{
+    gdb_server_reply_ok();
+    gdb_server_disconnected();
+}
+
+/*
+ * ‘c [addr]’
+ * Continue at addr, which is the address to resume. If addr is omitted, resume
+ * at current address.
+ */
+void gdb_server_cmd_c(void)
+{
+    rv_target_resume();
+    gdb_server_target_run(true);
+}
+
+/*
+ * ‘m addr,length’
+ * Read length addressable memory units starting at address addr.
+ * Note that addr may not be aligned to any particular boundary.
+ */
+void gdb_server_cmd_m(void)
+{
+    char *p;
+
+    p = strchr(&cmd.data[1], ',');
+    p++;
+    sscanf(&cmd.data[1], "%x", (unsigned int*)(&gdb_server_i.mem_addr));
+    sscanf(p, "%x", (unsigned int*)(&gdb_server_i.mem_len));
+    if (gdb_server_i.mem_len > sizeof(gdb_server_i.mem_buffer)) {
+        gdb_server_i.mem_len = sizeof(gdb_server_i.mem_buffer);
+    }
+
+    rv_target_read_memory(gdb_server_i.mem_buffer, gdb_server_i.mem_addr, gdb_server_i.mem_len);
+
+    bin_to_hex(gdb_server_i.mem_buffer, rsp.data, gdb_server_i.mem_len);
+    rsp.len = gdb_server_i.mem_len * 2;
+    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+}
+
+/*
+ * ‘M addr,length:XX...’
+ * Write length addressable memory units starting at address addr.
+ */
+void gdb_server_cmd_M(void)
+{
+    const char *p;
+
+    sscanf(&cmd.data[1], "%x,%x", &gdb_server_i.mem_addr, &gdb_server_i.mem_len);
+    p = strchr(&cmd.data[1], ':');
+    p++;
+
+    if (gdb_server_i.mem_len > sizeof(gdb_server_i.mem_buffer)) {
+        gdb_server_i.mem_len = sizeof(gdb_server_i.mem_buffer);
+    }
+
+    hex_to_bin(p, gdb_server_i.mem_buffer, gdb_server_i.mem_len);
+    rv_target_write_memory(gdb_server_i.mem_buffer, gdb_server_i.mem_addr, gdb_server_i.mem_len);
+
+    gdb_server_reply_ok();
+}
+
+/*
+ * ‘X addr,length:XX...’
+ * Write data to memory, where the data is transmitted in binary.
+ */
+void gdb_server_cmd_X(void)
+{
+    const char *p;
+    uint32_t length;
+
+    sscanf(&cmd.data[1], "%x,%x", &gdb_server_i.mem_addr, &gdb_server_i.mem_len);
+    if (gdb_server_i.mem_len == 0) {
+        gdb_server_reply_ok();
+        return;
+    }
+
+    p = strchr(&cmd.data[1], ':');
+    p++;
+
+    if (gdb_server_i.mem_len > sizeof(gdb_server_i.mem_buffer)) {
+        gdb_server_i.mem_len = sizeof(gdb_server_i.mem_buffer);
+    }
+
+    length = cmd.len - ((uint32_t)p - (uint32_t)cmd.data);
+    bin_decode((uint8_t*)p, gdb_server_i.mem_buffer, length);
+
+    rv_target_write_memory(gdb_server_i.mem_buffer, gdb_server_i.mem_addr, gdb_server_i.mem_len);
+
+    gdb_server_reply_ok();
+}
 
 /*
  * ‘p n’
@@ -391,7 +428,6 @@ void gdb_server_cmd_p(void)
     }
     xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
-
 
 /*
  * ‘P n...=r...’
@@ -430,109 +466,6 @@ void gdb_server_cmd_P(void)
     gdb_server_reply_ok();
 }
 
-
-/*
- * ‘m addr,length’
- * Read length addressable memory units starting at address addr.
- * Note that addr may not be aligned to any particular boundary.
- */
-void gdb_server_cmd_m(void)
-{
-    char *p;
-
-    p = strchr(&cmd.data[1], ',');
-    p++;
-    sscanf(&cmd.data[1], "%x", (unsigned int*)(&gdb_server_i.mem_addr));
-    sscanf(p, "%x", (unsigned int*)(&gdb_server_i.mem_len));
-    if (gdb_server_i.mem_len > sizeof(gdb_server_i.mem_buffer)) {
-        gdb_server_i.mem_len = sizeof(gdb_server_i.mem_buffer);
-    }
-
-    rv_target_read_memory(gdb_server_i.mem_buffer, gdb_server_i.mem_addr, gdb_server_i.mem_len);
-
-    bin_to_hex(gdb_server_i.mem_buffer, rsp.data, gdb_server_i.mem_len);
-    rsp.len = gdb_server_i.mem_len * 2;
-    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
-}
-
-
-/*
- * ‘M addr,length:XX...’
- * Write length addressable memory units starting at address addr.
- */
-void gdb_server_cmd_M(void)
-{
-    const char *p;
-
-    sscanf(&cmd.data[1], "%x,%x", &gdb_server_i.mem_addr, &gdb_server_i.mem_len);
-    p = strchr(&cmd.data[1], ':');
-    p++;
-
-    if (gdb_server_i.mem_len > sizeof(gdb_server_i.mem_buffer)) {
-        gdb_server_i.mem_len = sizeof(gdb_server_i.mem_buffer);
-    }
-
-    hex_to_bin(p, gdb_server_i.mem_buffer, gdb_server_i.mem_len);
-    rv_target_write_memory(gdb_server_i.mem_buffer, gdb_server_i.mem_addr, gdb_server_i.mem_len);
-
-    gdb_server_reply_ok();
-}
-
-
-/*
- * ‘X addr,length:XX...’
- * Write data to memory, where the data is transmitted in binary.
- */
-void gdb_server_cmd_X(void)
-{
-    const char *p;
-    uint32_t length;
-
-    sscanf(&cmd.data[1], "%x,%x", &gdb_server_i.mem_addr, &gdb_server_i.mem_len);
-    if (gdb_server_i.mem_len == 0) {
-        gdb_server_reply_ok();
-        return;
-    }
-
-    p = strchr(&cmd.data[1], ':');
-    p++;
-
-    if (gdb_server_i.mem_len > sizeof(gdb_server_i.mem_buffer)) {
-        gdb_server_i.mem_len = sizeof(gdb_server_i.mem_buffer);
-    }
-
-    length = cmd.len - ((uint32_t)p - (uint32_t)cmd.data);
-    bin_decode((uint8_t*)p, gdb_server_i.mem_buffer, length);
-
-    rv_target_write_memory(gdb_server_i.mem_buffer, gdb_server_i.mem_addr, gdb_server_i.mem_len);
-
-    gdb_server_reply_ok();
-}
-
-
-/*
- * ‘k’
- * Kill request.
- */
-void gdb_server_cmd_k(void)
-{
-    gdb_server_reply_ok();
-    gdb_server_disconnected();
-}
-
-
-/*
- * ‘c [addr]’
- * Continue at addr, which is the address to resume. If addr is omitted, resume
- * at current address.
- */
-void gdb_server_cmd_c(void)
-{
-    rv_target_resume();
-    gdb_server_target_run(true);
-}
-
-
 /*
  * ‘s [addr]’
  * Single step, resuming at addr. If addr is omitted, resume at same address.
@@ -542,7 +475,6 @@ void gdb_server_cmd_s(void)
     rv_target_step();
     gdb_server_target_run(true);
 }
-
 
 /*
  * ‘z type,addr,kind’
@@ -562,7 +494,6 @@ void gdb_server_cmd_z(void)
     }
 }
 
-
 /*
  * ‘Z type,addr,kind’
  * Insert (‘Z’) or remove (‘z’) a type breakpoint or watchpoint starting at address
@@ -581,95 +512,6 @@ void gdb_server_cmd_Z(void)
     }
 }
 
-
-/*
- * Ctrl+C
- */
-void gdb_server_cmd_ctrl_c(void)
-{
-    rv_target_halt();
-}
-
-
-/*
- * ‘v’
- * Packets starting with ‘v’ are identified by a multi-letter name.
- */
-void gdb_server_cmd_v(void)
-{
-    if (strncmp(cmd.data, "vFlashErase:", 12) == 0) {
-        gdb_server_cmd_vFlashErase();
-    } else if (strncmp(cmd.data, "vFlashWrite:", 12) == 0) {
-        gdb_server_cmd_vFlashWrite();
-    } else if (strncmp(cmd.data, "vFlashDone", 10) == 0) {
-        gdb_server_cmd_vFlashDone();
-    } else {
-        gdb_server_reply_empty();
-    }
-}
-
-/*
- * ‘vFlashErase:addr,length’
- * Direct the stub to erase length bytes of flash starting at addr.
- */
-void gdb_server_cmd_vFlashErase(void)
-{
-    int addr, length;
-
-    sscanf(&cmd.data[12], "%x,%x", &addr, &length);
-    gdb_server_i.mem_addr = addr;
-    gdb_server_i.mem_len = length;
-
-    rv_target_flash_erase(gdb_server_i.mem_addr, gdb_server_i.mem_len, &gdb_server_i.flash_err);
-    if (gdb_server_i.flash_err == 0) {
-        gdb_server_reply_ok();
-    } else {
-        gdb_server_reply_err(gdb_server_i.flash_err);
-        gdb_server_disconnected();
-    }
-}
-
-
-/*
- * ‘vFlashWrite:addr:XX...’
- * Direct the stub to write data to flash address addr.
- * The data is passed in binary form using the same encoding as for the ‘X’ packet.
- */
-void gdb_server_cmd_vFlashWrite(void)
-{
-    int addr;
-    const char *p;
-    uint32_t length;
-
-    sscanf(&cmd.data[12], "%x", &addr);
-    gdb_server_i.mem_addr = addr;
-
-    p = strchr(&cmd.data[12], ':');
-    p++;
-
-    length = cmd.len - ((uint32_t)p - (uint32_t)cmd.data);
-    gdb_server_i.mem_len = bin_decode((uint8_t*)p, gdb_server_i.mem_buffer, length);
-
-    rv_target_flash_write(gdb_server_i.mem_addr, gdb_server_i.mem_len, gdb_server_i.mem_buffer, &gdb_server_i.flash_err);
-    if (gdb_server_i.flash_err == 0) {
-        gdb_server_reply_ok();
-    } else {
-        gdb_server_reply_err(gdb_server_i.flash_err);
-        gdb_server_disconnected();
-    }
-}
-
-
-/*
- * ‘vFlashDone’
- * Indicate to the stub that flash programming operation is finished.
- */
-void gdb_server_cmd_vFlashDone(void)
-{
-    rv_target_flash_done();
-    gdb_server_reply_ok();
-}
-
 /*
  * ‘+’
  * Packets starting with ‘+’ custom command.
@@ -677,59 +519,104 @@ void gdb_server_cmd_vFlashDone(void)
  */
 void gdb_server_cmd_custom(void)
 {
-    if (strncmp(cmd.data, "+:set:interface:jtag;", 15) == 0) {
-        rv_target_set_interface(TARGET_INTERFACE_JTAG);
-    } else if (strncmp(cmd.data, "+:set:interface:cjtag;", 16) == 0) {
-        rv_target_set_interface(TARGET_INTERFACE_CJTAG);
-    } else if (strncmp(cmd.data, "+:set:connect;", 14) == 0) {
-        gdb_set_no_ack_mode(false);
+    const char *p;
+
+    p = strchr(&cmd.data[1], ':') + 1;
+    if (strncmp(p, "set", strlen("set")) == 0) {
+        gdb_server_cmd_custom_set(p);
+    } else if (strncmp(p, "read", strlen("read")) == 0) {
+        gdb_server_cmd_custom_read(p);
+    } else if (strncmp(p, "algorithm", strlen("algorithm")) == 0) {
+        gdb_server_cmd_custom_algorithm(p);
+    }
+}
+
+void gdb_server_cmd_custom_set(const char* data)
+{
+    const char *p;
+
+    p = strchr(data, ':') + 1;
+    if (strncmp(p, "interface", strlen("interface")) == 0) {
+        p = strchr(p, ':') + 1;
+        if (strncmp(p, "jtag", strlen("jtag")) == 0) {
+            rv_target_set_interface(TARGET_INTERFACE_JTAG);
+        } else if (strncmp(p, "cjtag", strlen("cjtag")) == 0) {
+            rv_target_set_interface(TARGET_INTERFACE_CJTAG);
+        }
+        strncpy(rsp.data, "-:set:interface:jtag:OK;", 24);
+        rsp.len = 24;
+        xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
         gdb_server_connected();
-    } else if (strncmp(cmd.data, "+:read:misa;", 12) == 0) {
+    }
+}
+
+void gdb_server_cmd_custom_read(const char* data)
+{
+    const char *p;
+
+    p = strchr(data, ':') + 1;
+    if (strncmp(p, "misa", strlen("misa")) == 0) {
         strncpy(rsp.data, "-:read:misa:", 12);
         rsp.len = 12;
         uint32_t misa = rv_target_misa();
         sprintf(&rsp.data[rsp.len], "%08x;", misa);
         rsp.len += 9;
         xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
-    } else if (strncmp(cmd.data, "+:read:vlenb;", 13) == 0) {
+    } else if (strncmp(p, "vlenb", strlen("vlenb")) == 0) {
         strncpy(rsp.data, "-:read:vlenb:", 13);
         rsp.len = 13;
         uint64_t vlenb = rv_target_vlenb();
         sprintf(&rsp.data[rsp.len], "%016x;", vlenb);
         rsp.len += 17;
         xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
-    } else {
     }
 }
 
-static void gdb_server_reply_ok(void)
+void gdb_server_cmd_custom_algorithm(const char* data)
 {
-    strncpy(rsp.data, "OK", GDB_PACKET_BUFF_SIZE);
-    rsp.len = 2;
+    const char *p;
+    uint32_t loader_addr;
+    uint32_t cs;
+    uint32_t spi_base;
+    uint32_t params1, params2, params3;
+
+    p = strchr(data, ':') + 1;
+    sscanf(p, "%x,%x,%x,%x,%x,%x;", &loader_addr, &cs, &spi_base, &params1, &params2, &params3);
+
+    /* Save registers */
+    rv_target_read_core_registers(gdb_server_i.regs);
+    gdb_server_i.restore_reg_flag = true;
+    /* Run algorithm */
+    gdb_server_i.reg_tmp_num = RV_REG_PC;
+    gdb_server_i.reg_tmp[0] = loader_addr;
+    rv_target_write_register(gdb_server_i.reg_tmp, gdb_server_i.reg_tmp_num);
+    gdb_server_i.reg_tmp_num = RV_REG_A0;
+    gdb_server_i.reg_tmp[0] = cs;
+    rv_target_write_register(gdb_server_i.reg_tmp, gdb_server_i.reg_tmp_num);
+    gdb_server_i.reg_tmp_num = RV_REG_A1;
+    gdb_server_i.reg_tmp[0] = spi_base;
+    rv_target_write_register(gdb_server_i.reg_tmp, gdb_server_i.reg_tmp_num);
+    gdb_server_i.reg_tmp_num = RV_REG_A2;
+    gdb_server_i.reg_tmp[0] = params1;
+    rv_target_write_register(gdb_server_i.reg_tmp, gdb_server_i.reg_tmp_num);
+    gdb_server_i.reg_tmp_num = RV_REG_A3;
+    gdb_server_i.reg_tmp[0] = params2;
+    rv_target_write_register(gdb_server_i.reg_tmp, gdb_server_i.reg_tmp_num);
+    gdb_server_i.reg_tmp_num = RV_REG_A4;
+    gdb_server_i.reg_tmp[0] = params3;
+    rv_target_write_register(gdb_server_i.reg_tmp, gdb_server_i.reg_tmp_num);
+
+    strncpy(rsp.data, "-:algorithm:OK;", 15);
+    rsp.len = 15;
     xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
-
-
-static void gdb_server_reply_empty(void)
-{
-    rsp.len = 0;
-    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
-}
-
-
-static void gdb_server_reply_err(int err)
-{
-    snprintf(rsp.data, GDB_PACKET_BUFF_SIZE, "E%02x", err);
-    rsp.len = strlen(rsp.data);
-    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
-}
-
 
 void gdb_server_connected(void)
 {
     gdb_server_i.target_error = rv_target_error_none;
     gdb_server_i.gdb_connected = true;
     gdb_server_target_run(false);
+    gdb_server_i.restore_reg_flag = false;
 
     rv_target_init();
     rv_target_init_post(&gdb_server_i.target_error);
@@ -760,7 +647,6 @@ void gdb_server_connected(void)
     }
 }
 
-
 void gdb_server_disconnected(void)
 {
     if (gdb_server_i.target_running == false) {
@@ -778,12 +664,24 @@ void gdb_server_disconnected(void)
     gdb_server_i.gdb_connected = false;
 }
 
-
 static void gdb_server_target_run(bool run)
 {
     gdb_server_i.target_running = run;
 }
 
+static void gdb_server_reply_ok(void)
+{
+    strncpy(rsp.data, "OK", GDB_PACKET_BUFF_SIZE);
+    rsp.len = 2;
+    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+}
+
+static void gdb_server_reply_err(int err)
+{
+    snprintf(rsp.data, GDB_PACKET_BUFF_SIZE, "E%02x", err);
+    rsp.len = strlen(rsp.data);
+    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+}
 
 static void bin_to_hex(const uint8_t *bin, char *hex, uint32_t nbyte)
 {
@@ -813,7 +711,6 @@ static void bin_to_hex(const uint8_t *bin, char *hex, uint32_t nbyte)
         bin++;
     }
 }
-
 
 static void uint32_to_hex_le(uint32_t data, char *hex)
 {
@@ -868,7 +765,6 @@ static void hex_to_bin(const char *hex, uint8_t *bin, uint32_t nbyte)
     }
 }
 
-
 static void hex_to_uint32_le(const char *hex, uint32_t *data)
 {
     uint8_t bytes[4];
@@ -896,7 +792,6 @@ static void hex_to_uint64_le(const char *hex, uint64_t *data)
             ((uint64_t)bytes[6] << 48) | 
             ((uint64_t)bytes[7] << 56);
 }
-
 
 static uint32_t bin_decode(const uint8_t* xbin, uint8_t* bin, uint32_t xbin_len)
 {

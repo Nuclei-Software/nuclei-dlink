@@ -1,6 +1,31 @@
 
+#define MSTATUS_UIE         0x00000001
+#define MSTATUS_SIE         0x00000002
+#define MSTATUS_HIE         0x00000004
+#define MSTATUS_MIE         0x00000008
+#define MSTATUS_UPIE        0x00000010
+#define MSTATUS_SPIE        0x00000020
+#define MSTATUS_UBE         0x00000040
+#define MSTATUS_MPIE        0x00000080
+#define MSTATUS_SPP         0x00000100
 #define MSTATUS_VS          0x00000600
+#define MSTATUS_MPP         0x00001800
 #define MSTATUS_FS          0x00006000
+#define MSTATUS_XS          0x00018000
+#define MSTATUS_MPRV        0x00020000
+#define MSTATUS_SUM         0x00040000
+#define MSTATUS_MXR         0x00080000
+#define MSTATUS_TVM         0x00100000
+#define MSTATUS_TW          0x00200000
+#define MSTATUS_TSR         0x00400000
+#define MSTATUS32_SD        0x80000000
+#define MSTATUS_UXL         0x0000000300000000
+#define MSTATUS_SXL         0x0000000C00000000
+#define MSTATUS_SBE         0x0000001000000000
+#define MSTATUS_MBE         0x0000002000000000
+#define MSTATUS_GVA         0x0000004000000000
+#define MSTATUS_MPV         0x0000008000000000
+#define MSTATUS64_SD        0x8000000000000000
 
 #define MATCH_ADD 0x33
 #define MASK_ADD 0xfe00707f

@@ -41,7 +41,7 @@ int main(void)
 
     xReturned = xTaskCreate(gdb_server_vTask,       /* Function that implements the task. */
                             "gdb_server",           /* Text name for the task. */
-                            256,                    /* Stack size in words, not bytes. */
+                            512,                    /* Stack size in words, not bytes. */
                             NULL,                   /* Parameter passed into the task. */
                             2,                      /* Priority at which the task is created. */
                             &gdb_server_xHandle);  /* Used to pass out the created task's handle. */

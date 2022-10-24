@@ -434,15 +434,15 @@ static void rv_memory_read(uint8_t *mem, uint64_t addr, uint32_t len, uint32_t a
         }
 
         switch(aamsize) {
-            case 0:
+            case RV_AAMSIZE_8BITS:
                 pbyte = (uint8_t*)mem;
                 pbyte[i] = target.dm.data[0] & 0xff;
                 break;
-            case 1:
+            case RV_AAMSIZE_16BITS:
                 phalfword = (uint16_t*)mem;
                 phalfword[i] = target.dm.data[0] & 0xffff;
                 break;
-            case 2:
+            case RV_AAMSIZE_32BITS:
                 pword = (uint32_t*)mem;
                 pword[i] = target.dm.data[0];
                 break;
@@ -936,7 +936,7 @@ void rv_target_halt_check(rv_target_halt_info_t* halt_info)
             halt_info->reason = rv_target_halt_reason_software_breakpoint;
         } else if (dcsr.cause == RV_CSR_DCSR_CAUSE_TRIGGER) {
             halt_info->reason = rv_target_halt_reason_other;
-#if 0
+#if 1
             for(i = 0; i < RV_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM; i++) {
                 if (hardware_breakpoints[i].type != rv_target_breakpoint_type_unused) {
                     if (MXL_RV32 == target.misa.mxl) {
