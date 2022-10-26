@@ -59,13 +59,13 @@ typedef enum {
 
 typedef struct {
     rv_target_breakpoint_type_t type;
-    uint32_t addr;
+    uint64_t addr;
     uint32_t kind;
 } rv_hardware_breakpoint_t;
 
 typedef struct {
     rv_target_breakpoint_type_t type;
-    uint32_t addr;
+    uint64_t addr;
     uint32_t kind;
     uint32_t inst;
 } rv_software_breakpoint_t;
@@ -235,9 +235,6 @@ void rv_target_resume(void);
 void rv_target_step(void);
 void rv_target_insert_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr, uint32_t kind, uint32_t *err);
 void rv_target_remove_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr, uint32_t kind, uint32_t *err);
-void rv_target_flash_erase(uint32_t addr, uint32_t len, uint32_t *err);
-void rv_target_flash_write(uint32_t addr, uint32_t len, uint8_t *buffer, uint32_t *err);
-void rv_target_flash_done(void);
 
 /*===============================DM============================================*/
 /*==== debug module register ====*/
@@ -484,7 +481,7 @@ typedef union {
             rv_tr32_reg_t dmode: 1;
             rv_tr32_reg_t type: 4;
         } mc;
-        /* icount while type=2 */
+        /* icount while type=3 */
         struct {
             rv_tr32_reg_t action: 6;
             rv_tr32_reg_t u: 1;
@@ -584,7 +581,7 @@ typedef union {
             rv_tr64_reg_t dmode: 1;
             rv_tr64_reg_t type: 4;
         } mc;
-        /* icount while type=2 */
+        /* icount while type=3 */
         struct {
             rv_tr64_reg_t action: 6;
             rv_tr64_reg_t u: 1;

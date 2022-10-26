@@ -928,6 +928,7 @@ void rv_target_halt_check(rv_target_halt_info_t* halt_info)
     uint32_t wp_addr_base_regno;
     uint32_t wp_addr_offset;
     uint32_t mc_hit;
+    uint64_t tselect;
 
     rv_dmi_read(RV_DM_DEBUG_MODULE_STATUS, &target.dm.dmstatus.value);
     if (target.dm.dmstatus.allhalted) {
@@ -936,7 +937,7 @@ void rv_target_halt_check(rv_target_halt_info_t* halt_info)
             halt_info->reason = rv_target_halt_reason_software_breakpoint;
         } else if (dcsr.cause == RV_CSR_DCSR_CAUSE_TRIGGER) {
             halt_info->reason = rv_target_halt_reason_other;
-#if 1
+            rv_target_read_register(&tselect, RV_REG_TSELECT);
             for(i = 0; i < RV_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM; i++) {
                 if (hardware_breakpoints[i].type != rv_target_breakpoint_type_unused) {
                     if (MXL_RV32 == target.misa.mxl) {
@@ -969,7 +970,7 @@ void rv_target_halt_check(rv_target_halt_info_t* halt_info)
                     }
                 }
             }
-#endif
+            rv_target_write_register(&tselect, RV_REG_TSELECT);
             rv_target_read_register(&dpc, RV_REG_DPC);
             for(i = 0; i < RV_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM; i++) {
                 if (hardware_breakpoints[i].type == rv_target_breakpoint_type_hardware) {
@@ -1052,6 +1053,8 @@ void rv_target_step(void)
 void rv_target_insert_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr, uint32_t kind, uint32_t* err)
 {
     uint32_t i;
+    uint64_t tselect;
+    uint64_t tselect_rd, tdata1_rd;
     const uint16_t c_ebreak = 0x9002;
     const uint32_t ebreak = 0x00100073;
 
@@ -1077,6 +1080,9 @@ void rv_target_insert_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr
             return;
         }
     } else {
+        tselect_rd = 0;
+        tdata1_rd = 0;
+        rv_target_read_register(&tselect, RV_REG_TSELECT);
         for(i = 0; i < RV_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM; i++) {
             if (hardware_breakpoints[i].type == rv_target_breakpoint_type_unused) {
                 hardware_breakpoints[i].type = type;
@@ -1085,13 +1091,22 @@ void rv_target_insert_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr
                 if (MXL_RV32 == target.misa.mxl) {
                     target.tr32.tselect = i;
                     rv_target_write_register(&target.tr32.tselect, RV_REG_TSELECT);
-                    target.tr32.tdata1.value = 0;
-                    target.tr32.tdata1.mc.type = 2;
+                    rv_target_read_register(&tselect_rd, RV_REG_TSELECT);
+                    if (target.tr32.tselect != tselect_rd) {
+                        *err = 0x0e;
+                        return;
+                    }
+                    rv_target_read_register(&target.tr32.tdata1.value, RV_REG_TDATA1);
                     target.tr32.tdata1.mc.dmode = 1;
                     target.tr32.tdata1.mc.action = 1;
+                    target.tr32.tdata1.mc.match = 0;
                     target.tr32.tdata1.mc.m = 1;
-                    target.tr32.tdata1.mc.s = 1;
-                    target.tr32.tdata1.mc.u = 1;
+                    if (target.misa.s) {
+                        target.tr32.tdata1.mc.s = 1;
+                    }
+                    if (target.misa.u) {
+                        target.tr32.tdata1.mc.u = 1;
+                    }
                     switch(type) {
                         case rv_target_breakpoint_type_hardware:
                             target.tr32.tdata1.mc.execute = 1;
@@ -1109,31 +1124,32 @@ void rv_target_insert_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr
                         default:
                             break;
                     }
-                    switch(kind) {
-                        case 1:
-                            target.tr32.tdata1.mc.sizelo = 1;
-                            break;
-                        case 2:
-                            target.tr32.tdata1.mc.sizelo = 2;
-                            break;
-                        case 4:
-                            target.tr32.tdata1.mc.sizelo = 3;
-                            break;
-                        default:
-                            break;
-                    }
                     rv_target_write_register(&target.tr32.tdata1.value, RV_REG_TDATA1);
+                    rv_target_read_register(&tdata1_rd, RV_REG_TDATA1);
+                    if (target.tr32.tdata1.value != tdata1_rd) {
+                        *err = 0x0e;
+                        return;
+                    }
                     rv_target_write_register(&hardware_breakpoints[target.tr32.tselect].addr, RV_REG_TDATA2);
                 } else if (MXL_RV64 == target.misa.mxl) {
                     target.tr64.tselect = i;
                     rv_target_write_register(&target.tr64.tselect, RV_REG_TSELECT);
-                    target.tr64.tdata1.value = 0;
-                    target.tr64.tdata1.mc.type = 2;
+                    rv_target_read_register(&tselect_rd, RV_REG_TSELECT);
+                    if (target.tr64.tselect != tselect_rd) {
+                        *err = 0x0e;
+                        return;
+                    }
+                    rv_target_read_register(&target.tr64.tdata1.value, RV_REG_TDATA1);
                     target.tr64.tdata1.mc.dmode = 1;
                     target.tr64.tdata1.mc.action = 1;
+                    target.tr64.tdata1.mc.match = 0;
                     target.tr64.tdata1.mc.m = 1;
-                    target.tr64.tdata1.mc.s = 1;
-                    target.tr64.tdata1.mc.u = 1;
+                    if (target.misa.s) {
+                        target.tr64.tdata1.mc.s = 1;
+                    }
+                    if (target.misa.u) {
+                        target.tr64.tdata1.mc.u = 1;
+                    }
                     switch(type) {
                         case rv_target_breakpoint_type_hardware:
                             target.tr64.tdata1.mc.execute = 1;
@@ -1151,25 +1167,18 @@ void rv_target_insert_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr
                         default:
                             break;
                     }
-                    switch(kind) {
-                        case 1:
-                            target.tr64.tdata1.mc.sizelo = 1;
-                            break;
-                        case 2:
-                            target.tr64.tdata1.mc.sizelo = 2;
-                            break;
-                        case 4:
-                            target.tr64.tdata1.mc.sizelo = 3;
-                            break;
-                        default:
-                            break;
-                    }
                     rv_target_write_register(&target.tr64.tdata1.value, RV_REG_TDATA1);
+                    rv_target_read_register(&tdata1_rd, RV_REG_TDATA1);
+                    if (target.tr64.tdata1.value != tdata1_rd) {
+                        *err = 0x0e;
+                        return;
+                    }
                     rv_target_write_register(&hardware_breakpoints[target.tr64.tselect].addr, RV_REG_TDATA2);
                 }
                 break;
             }
         }
+        rv_target_write_register(&tselect, RV_REG_TSELECT);
         if (i == RV_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM) {
             *err = 0x0e;
             return;
@@ -1182,6 +1191,8 @@ void rv_target_insert_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr
 void rv_target_remove_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr, uint32_t kind, uint32_t* err)
 {
     uint32_t i;
+    uint64_t tselect;
+    uint64_t tselect_rd;
 
     if (type == rv_target_breakpoint_type_software) {
         for(i = 0; i < RV_TARGET_CONFIG_SOFTWARE_BREAKPOINT_NUM; i++) {
@@ -1201,6 +1212,8 @@ void rv_target_remove_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr
             return;
         }
     } else {
+        tselect_rd = 0;
+        rv_target_read_register(&tselect, RV_REG_TSELECT);
         for(i = 0; i < RV_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM; i++) {
             if ((hardware_breakpoints[i].type == type) && 
                 (hardware_breakpoints[i].addr == addr) && 
@@ -1208,15 +1221,26 @@ void rv_target_remove_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr
                 if (MXL_RV32 == target.misa.mxl) {
                     target.tr32.tselect = i;
                     rv_target_write_register(&target.tr32.tselect, RV_REG_TSELECT);
+                    rv_target_read_register(&tselect_rd, RV_REG_TSELECT);
+                    if (target.tr32.tselect != tselect_rd) {
+                        *err = 0x0e;
+                        return;
+                    }
                 } else if (MXL_RV64 == target.misa.mxl) {
                     target.tr64.tselect = i;
                     rv_target_write_register(&target.tr64.tselect, RV_REG_TSELECT);
+                    rv_target_read_register(&tselect_rd, RV_REG_TSELECT);
+                    if (target.tr64.tselect != tselect_rd) {
+                        *err = 0x0e;
+                        return;
+                    }
                 }
                 rv_target_write_register(&zero, RV_REG_TDATA1);
                 hardware_breakpoints[i].type = rv_target_breakpoint_type_unused;
                 break;
             }
         }
+        rv_target_write_register(&tselect, RV_REG_TSELECT);
         if (i == RV_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM) {
             *err = 0x0e;
             return;
@@ -1225,12 +1249,3 @@ void rv_target_remove_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr
     *err = 0;
     return;
 }
-
-void rv_target_flash_erase(uint32_t addr, uint32_t len, uint32_t* err)
-{}
-
-void rv_target_flash_write(uint32_t addr, uint32_t len, uint8_t* buffer, uint32_t* err)
-{}
-
-void rv_target_flash_done(void)
-{}
