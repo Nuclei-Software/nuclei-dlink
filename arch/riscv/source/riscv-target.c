@@ -42,6 +42,7 @@ uint32_t result;
 bool err_flag;
 const char *err_msg;
 uint32_t err_pc;
+uint64_t save_vtype, save_vl;
 rv_hardware_breakpoint_t hardware_breakpoints[RV_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM];
 rv_software_breakpoint_t software_breakpoints[RV_TARGET_CONFIG_SOFTWARE_BREAKPOINT_NUM];
 uint32_t rv_target_dr_post;
@@ -171,90 +172,6 @@ static void rv_dmi_write(uint32_t addr, uint32_t in)
     result = target.dmi.op;
 }
 
-static void rv_register_read(uint32_t *reg, uint32_t regno)
-{
-    uint32_t mxl;
-    if (regno == (RV_REG_DCSR - RV_REG_CSR0)) {
-        mxl = MXL_RV32;
-    } else {
-        mxl = target.misa.mxl;
-    }
-    err_flag = false;
-    target.dm.command.value = 0;
-    target.dm.command.reg.cmdtype = RV_DM_ABSTRACT_CMD_ACCESS_REG;
-    if (MXL_RV32 == mxl) {
-        target.dm.command.reg.aarsize = 2;
-    } else if (MXL_RV64 == mxl) {
-        target.dm.command.reg.aarsize = 3;
-    }
-    target.dm.command.reg.transfer = 1;
-    target.dm.command.reg.regno = regno;
-    rv_dmi_write(RV_DM_ABSTRACT_COMMAND, target.dm.command.value);
-
-    do {
-    rv_dmi_read(RV_DM_ABSTRACT_CONTROL_AND_STATUS, &target.dm.abstractcs.value);
-    if (target.dm.abstractcs.cmderr) {
-        rv_set_error(rv_abstractcs_cmderr_str[target.dm.abstractcs.cmderr]);
-        target.dm.abstractcs.value = 0;
-        target.dm.abstractcs.cmderr = 0x7;
-        rv_dmi_write(RV_DM_ABSTRACT_CONTROL_AND_STATUS, target.dm.abstractcs.value);
-        *reg = 0xffffffff;
-        }
-    } while(target.dm.abstractcs.busy);
-
-        if (MXL_RV32 == mxl) {
-            rv_dmi_read(RV_DM_ABSTRACT_DATA0, &target.dm.data[0]);
-            reg[0] = target.dm.data[0];
-        } else if (MXL_RV64 == mxl) {
-            rv_dmi_read(RV_DM_ABSTRACT_DATA0, &target.dm.data[0]);
-            reg[0] = target.dm.data[0];
-            rv_dmi_read(RV_DM_ABSTRACT_DATA1, &target.dm.data[1]);
-            reg[1] = target.dm.data[1];
-        }
-    }
-
-static void rv_register_write(uint32_t *reg, uint32_t regno)
-{
-    uint32_t mxl;
-    if (regno == (RV_REG_DCSR - RV_REG_CSR0)) {
-        mxl = MXL_RV32;
-    } else {
-        mxl = target.misa.mxl;
-    }
-    err_flag = false;
-    if (MXL_RV32 == mxl) {
-        target.dm.data[0] = reg[0];
-        rv_dmi_write(RV_DM_ABSTRACT_DATA0, target.dm.data[0]);
-    } else if (MXL_RV64 == mxl) {
-        target.dm.data[0] = reg[0];
-        rv_dmi_write(RV_DM_ABSTRACT_DATA0, target.dm.data[0]);
-        target.dm.data[1] = reg[1];
-        rv_dmi_write(RV_DM_ABSTRACT_DATA1, target.dm.data[1]);
-    }
-
-    target.dm.command.value = 0;
-    target.dm.command.reg.cmdtype = RV_DM_ABSTRACT_CMD_ACCESS_REG;
-    if (MXL_RV32 == mxl) {
-        target.dm.command.reg.aarsize = 2;
-    } else if (MXL_RV64 == mxl) {
-        target.dm.command.reg.aarsize = 3;
-    }
-    target.dm.command.reg.write = 1;
-    target.dm.command.reg.transfer = 1;
-    target.dm.command.reg.regno = regno;
-    rv_dmi_write(RV_DM_ABSTRACT_COMMAND, target.dm.command.value);
-
-    do {
-    rv_dmi_read(RV_DM_ABSTRACT_CONTROL_AND_STATUS, &target.dm.abstractcs.value);
-    if (target.dm.abstractcs.cmderr) {
-        rv_set_error(rv_abstractcs_cmderr_str[target.dm.abstractcs.cmderr]);
-        target.dm.abstractcs.value = 0;
-        target.dm.abstractcs.cmderr = 0x7;
-        rv_dmi_write(RV_DM_ABSTRACT_CONTROL_AND_STATUS, target.dm.abstractcs.value);
-    }
-    } while(target.dm.abstractcs.busy);
-}
-
 static void rv_prep_for_register_access(uint32_t regno)
 {
     uint64_t mstatus;
@@ -289,111 +206,88 @@ static void rv_cleanup_after_register_access(uint32_t regno)
     }
 }
 
-void rv_program_exec(uint32_t* inst, uint32_t num)
+static void rv_register_read(uint32_t *reg, uint32_t regno)
 {
-    uint64_t saved_registers[RV_REG_T6];
-    for (int i = RV_REG_ZERO; i <= RV_REG_T6; i++) {
-        rv_target_read_register(&saved_registers[i], i);
+    uint32_t mxl;
+    if (regno == (RV_REG_DCSR - RV_REG_CSR0)) {
+        mxl = MXL_RV32;
+    } else {
+        mxl = target.misa.mxl;
     }
-
-    for (int i = 0; i < num; i++) {
-        rv_dmi_write(RV_DM_PROGRAM_BUFFER0 + i, inst[i]);
-    }
+    err_flag = false;
     target.dm.command.value = 0;
-    target.dm.command.reg.aarsize = 2;
-    target.dm.command.reg.postexec = 1;
-    target.dm.command.reg.transfer = 0;
-    target.dm.command.reg.regno = 0x1000;
+    target.dm.command.reg.cmdtype = RV_DM_ABSTRACT_CMD_ACCESS_REG;
+    if (MXL_RV32 == mxl) {
+        target.dm.command.reg.aarsize = 2;
+    } else if (MXL_RV64 == mxl) {
+        target.dm.command.reg.aarsize = 3;
+    }
+    target.dm.command.reg.transfer = 1;
+    target.dm.command.reg.regno = regno;
     rv_dmi_write(RV_DM_ABSTRACT_COMMAND, target.dm.command.value);
 
     do {
-    rv_dmi_read(RV_DM_ABSTRACT_CONTROL_AND_STATUS, &target.dm.abstractcs.value);
-    if (target.dm.abstractcs.cmderr) {
-        rv_set_error(rv_abstractcs_cmderr_str[target.dm.abstractcs.cmderr]);
-        target.dm.abstractcs.value = 0;
-        target.dm.abstractcs.cmderr = 0x7;
-        rv_dmi_write(RV_DM_ABSTRACT_CONTROL_AND_STATUS, target.dm.abstractcs.value);
-    }
+        rv_dmi_read(RV_DM_ABSTRACT_CONTROL_AND_STATUS, &target.dm.abstractcs.value);
+        if (target.dm.abstractcs.cmderr) {
+            rv_set_error(rv_abstractcs_cmderr_str[target.dm.abstractcs.cmderr]);
+            target.dm.abstractcs.value = 0;
+            target.dm.abstractcs.cmderr = 0x7;
+            rv_dmi_write(RV_DM_ABSTRACT_CONTROL_AND_STATUS, target.dm.abstractcs.value);
+            *reg = 0xffffffff;
+        }
     } while(target.dm.abstractcs.busy);
 
-    for (int i = RV_REG_ZERO; i <= RV_REG_T6; i++) {
-        rv_target_write_register(&saved_registers[i], i);
+    if (MXL_RV32 == mxl) {
+        rv_dmi_read(RV_DM_ABSTRACT_DATA0, &target.dm.data[0]);
+        reg[0] = target.dm.data[0];
+    } else if (MXL_RV64 == mxl) {
+        rv_dmi_read(RV_DM_ABSTRACT_DATA0, &target.dm.data[0]);
+        reg[0] = target.dm.data[0];
+        rv_dmi_read(RV_DM_ABSTRACT_DATA1, &target.dm.data[1]);
+        reg[1] = target.dm.data[1];
     }
 }
 
-static void rv_register_read_buf(uint32_t *reg, uint32_t regno)
+static void rv_register_write(uint32_t *reg, uint32_t regno)
 {
-    uint64_t save_fp, save_vtype, save_vl;
-    uint64_t xlen, debug_vl, encoded_vsew;
-    uint32_t inst[3];
-    uint32_t inst_num;
-
-    xlen = target.misa.mxl * 32;
-    rv_target_read_register(&save_fp, RV_REG_FP);
-
-    //prep for vector access
-    rv_target_read_register(&save_vtype, RV_REG_VTYPE);
-    rv_target_read_register(&save_vl, RV_REG_VL);
-    if (MXL_RV32 == target.misa.mxl) {
-        encoded_vsew = 2 << 3;
-    } else if (MXL_RV64 == target.misa.mxl) {
-        encoded_vsew = 3 << 3;
+    uint32_t mxl;
+    if (regno == (RV_REG_DCSR - RV_REG_CSR0)) {
+        mxl = MXL_RV32;
+    } else {
+        mxl = target.misa.mxl;
     }
-    rv_target_write_register(&encoded_vsew, RV_REG_VTYPE);
-    debug_vl = ((target.vlenb * 8) + xlen - 1) / xlen;
-    rv_target_write_register(&debug_vl, RV_REG_VL);
-
-    inst[0] = vmv_x_s(RV_REG_FP, regno);
-    inst[1] = vslide1down_vx(regno, regno, RV_REG_FP, true);
-    inst[2] = ebreak();
-    inst_num = 3;
-    for (int i = 0; i < debug_vl; i++) {
-        rv_program_exec(inst, inst_num);
-        rv_target_read_register(reg + (target.misa.mxl * i), RV_REG_FP);
+    err_flag = false;
+    if (MXL_RV32 == mxl) {
+        target.dm.data[0] = reg[0];
+        rv_dmi_write(RV_DM_ABSTRACT_DATA0, target.dm.data[0]);
+    } else if (MXL_RV64 == mxl) {
+        target.dm.data[0] = reg[0];
+        rv_dmi_write(RV_DM_ABSTRACT_DATA0, target.dm.data[0]);
+        target.dm.data[1] = reg[1];
+        rv_dmi_write(RV_DM_ABSTRACT_DATA1, target.dm.data[1]);
     }
 
-    //cleanup after vector access
-    rv_target_write_register(&save_vtype, RV_REG_VTYPE);
-    rv_target_write_register(&save_vl, RV_REG_VL);
-
-    rv_target_write_register(&save_fp, RV_REG_FP);
-}
-
-static void rv_register_write_buf(uint32_t *reg, uint32_t regno)
-{
-    uint64_t save_fp, save_vtype, save_vl;
-    uint64_t xlen, debug_vl, encoded_vsew;
-    uint32_t inst[3];
-    uint32_t inst_num;
-
-    xlen = target.misa.mxl * 32;
-    rv_target_read_register(&save_fp, RV_REG_FP);
-
-    //prep for vector access
-    rv_target_read_register(&save_vtype, RV_REG_VTYPE);
-    rv_target_read_register(&save_vl, RV_REG_VL);
-    if (MXL_RV32 == target.misa.mxl) {
-        encoded_vsew = 2 << 3;
-    } else if (MXL_RV64 == target.misa.mxl) {
-        encoded_vsew = 3 << 3;
+    target.dm.command.value = 0;
+    target.dm.command.reg.cmdtype = RV_DM_ABSTRACT_CMD_ACCESS_REG;
+    if (MXL_RV32 == mxl) {
+        target.dm.command.reg.aarsize = 2;
+    } else if (MXL_RV64 == mxl) {
+        target.dm.command.reg.aarsize = 3;
     }
-    rv_target_write_register(&encoded_vsew, RV_REG_VTYPE);
-    debug_vl = ((target.vlenb * 8) + xlen - 1) / xlen;
-    rv_target_write_register(&debug_vl, RV_REG_VL);
+    target.dm.command.reg.write = 1;
+    target.dm.command.reg.transfer = 1;
+    target.dm.command.reg.regno = regno;
+    rv_dmi_write(RV_DM_ABSTRACT_COMMAND, target.dm.command.value);
 
-    inst[0] = vslide1down_vx(regno, regno, RV_REG_FP, true);
-    inst[1] = ebreak();
-    inst_num = 2;
-    for (int i = 0; i < debug_vl; i++) {
-        rv_target_write_register(reg + (target.misa.mxl * i), RV_REG_FP);
-        rv_program_exec(inst, inst_num);
-    }
-
-    //cleanup after vector access
-    rv_target_write_register(&save_vtype, RV_REG_VTYPE);
-    rv_target_write_register(&save_vl, RV_REG_VL);
-
-    rv_target_write_register(&save_fp, RV_REG_FP);
+    do {
+        rv_dmi_read(RV_DM_ABSTRACT_CONTROL_AND_STATUS, &target.dm.abstractcs.value);
+        if (target.dm.abstractcs.cmderr) {
+            rv_set_error(rv_abstractcs_cmderr_str[target.dm.abstractcs.cmderr]);
+            target.dm.abstractcs.value = 0;
+            target.dm.abstractcs.cmderr = 0x7;
+            rv_dmi_write(RV_DM_ABSTRACT_CONTROL_AND_STATUS, target.dm.abstractcs.value);
+        }
+    } while(target.dm.abstractcs.busy);
 }
 
 static void rv_memory_read(uint8_t *mem, uint64_t addr, uint32_t len, uint32_t aamsize)
@@ -505,6 +399,182 @@ static void rv_memory_write(const uint8_t* mem, uint64_t addr, uint32_t len, uin
             break;
         }
     }
+}
+
+void rv_program_exec(uint32_t* inst, uint32_t num)
+{
+    for (int i = 0; i < num; i++) {
+        rv_dmi_write(RV_DM_PROGRAM_BUFFER0 + i, inst[i]);
+    }
+    rv_dmi_write(RV_DM_PROGRAM_BUFFER0 + num, ebreak());
+
+    target.dm.command.value = 0;
+    target.dm.command.reg.aarsize = 2;
+    target.dm.command.reg.postexec = 1;
+    target.dm.command.reg.transfer = 0;
+    target.dm.command.reg.regno = 0x1000;
+    rv_dmi_write(RV_DM_ABSTRACT_COMMAND, target.dm.command.value);
+
+    do {
+        rv_dmi_read(RV_DM_ABSTRACT_CONTROL_AND_STATUS, &target.dm.abstractcs.value);
+        if (target.dm.abstractcs.cmderr) {
+            rv_set_error(rv_abstractcs_cmderr_str[target.dm.abstractcs.cmderr]);
+            target.dm.abstractcs.value = 0;
+            target.dm.abstractcs.cmderr = 0x7;
+            rv_dmi_write(RV_DM_ABSTRACT_CONTROL_AND_STATUS, target.dm.abstractcs.value);
+        }
+    } while(target.dm.abstractcs.busy);
+}
+
+static void rv_register_write_buf(void *reg, uint32_t regno)
+{
+    uint32_t inst[2];
+    uint32_t inst_num;
+    uint64_t save_fp, save_s1;
+
+    rv_target_read_register(&save_fp, RV_REG_FP);
+
+    if (regno >= RV_REG_FT0 && regno <= RV_REG_FT11) {
+        if (target.misa.d && (target.misa.mxl == MXL_RV32)) {// RV32 D
+            uint64_t scratch_addr;
+            rv_dmi_read(RV_DM_HALT_INFO, &target.dm.hartinfo.value);
+            scratch_addr = target.dm.hartinfo.dataaddr;
+            inst[0] = fld(regno - RV_REG_FT0, RV_REG_FP, 0);
+            inst_num = 1;
+            rv_target_write_register(&scratch_addr, RV_REG_FP);
+            rv_memory_write(reg, scratch_addr, 8, RV_AAMSIZE_32BITS);
+            rv_program_exec(inst, inst_num);
+        } else if (target.misa.d) {// RV64 D
+            inst[0] = fmv_d_x(regno - RV_REG_FT0, RV_REG_FP);
+            inst_num = 1;
+            rv_target_write_register(reg, RV_REG_FP);
+            rv_program_exec(inst, inst_num);
+        } else {// RV32/RV64 F
+            inst[0] = fmv_w_x(regno - RV_REG_FT0, RV_REG_FP);
+            inst_num = 1;
+            rv_target_write_register(reg, RV_REG_FP);
+            rv_program_exec(inst, inst_num);
+        }
+    } else if (regno == RV_REG_VL) {
+        rv_target_read_register(&save_s1, RV_REG_S1);
+        inst[0] = csrr(RV_REG_S1, RV_REG_VTYPE - RV_REG_CSR0);
+        inst[1] = vsetvl(RV_REG_ZERO, RV_REG_FP, RV_REG_S1);
+        inst_num = 2;
+        rv_target_write_register(reg, RV_REG_FP);
+        rv_program_exec(inst, inst_num);
+        rv_target_write_register(&save_s1, RV_REG_S1);
+    } else if (regno == RV_REG_VTYPE) {
+        rv_target_read_register(&save_s1, RV_REG_S1);
+        inst[0] = csrr(RV_REG_S1, RV_REG_VL - RV_REG_CSR0);
+        inst[1] = vsetvl(RV_REG_ZERO, RV_REG_S1, RV_REG_FP);
+        inst_num = 2;
+        rv_target_write_register(reg, RV_REG_FP);
+        rv_program_exec(inst, inst_num);
+        rv_target_write_register(&save_s1, RV_REG_S1);
+    } else if (regno >= RV_REG_CSR0 && regno <= (4095 + RV_REG_CSR0)) {
+        inst[0] = csrrw(RV_REG_ZERO, RV_REG_FP, regno - RV_REG_CSR0);
+        inst_num = 1;
+        rv_target_write_register(reg, RV_REG_FP);
+        rv_program_exec(inst, inst_num);
+    } else if (RV_REG_V0 < regno < RV_REG_V31) {
+        uint64_t xlen, debug_vl, encoded_vsew;
+        xlen = target.misa.mxl * 32;
+        if (MXL_RV32 == target.misa.mxl) {
+            encoded_vsew = 2 << 3;
+        } else if (MXL_RV64 == target.misa.mxl) {
+            encoded_vsew = 3 << 3;
+        }
+        debug_vl = ((target.vlenb * 8) + xlen - 1) / xlen;
+        rv_register_write_buf(&encoded_vsew, RV_REG_VTYPE);
+        rv_register_write_buf(&debug_vl, RV_REG_VL);
+        inst[0] = vslide1down_vx(regno - RV_REG_V0, regno - RV_REG_V0, RV_REG_FP, true);
+        inst_num = 1;
+        for (int i = 0; i < debug_vl; i++) {
+            if (MXL_RV32 == target.misa.mxl) {
+                rv_target_write_register((uint32_t*)reg + i, RV_REG_FP);
+            } else if (MXL_RV64 == target.misa.mxl) {
+                rv_target_write_register((uint64_t*)reg + i, RV_REG_FP);
+            }
+            rv_program_exec(inst, inst_num);
+        }
+    }
+
+    rv_target_write_register(&save_fp, RV_REG_FP);
+}
+
+static void rv_register_read_buf(void *reg, uint32_t regno)
+{
+    uint32_t inst[2];
+    uint32_t inst_num;
+    uint64_t save_fp;
+
+    rv_target_read_register(&save_fp, RV_REG_FP);
+
+    if (regno >= RV_REG_FT0 && regno <= RV_REG_FT11) {
+        if (target.misa.d && (target.misa.mxl == MXL_RV32)) {// RV32 D
+            uint64_t scratch_addr;
+            rv_dmi_read(RV_DM_HALT_INFO, &target.dm.hartinfo.value);
+            scratch_addr = target.dm.hartinfo.dataaddr;
+            inst[0] = fsd(regno - RV_REG_FT0, RV_REG_FP, 0);
+            inst_num = 1;
+            rv_target_write_register(&scratch_addr, RV_REG_FP);
+            rv_program_exec(inst, inst_num);
+            rv_memory_read(reg, scratch_addr, 8, RV_AAMSIZE_32BITS);
+        } else if (target.misa.d) {// RV64 D
+            inst[0] = fmv_x_d(RV_REG_FP, regno - RV_REG_FT0);
+            inst_num = 1;
+            rv_program_exec(inst, inst_num);
+            rv_target_read_register(reg, RV_REG_FP);
+        } else {// RV32/RV64 F
+            inst[0] = fmv_x_w(RV_REG_FP, regno - RV_REG_FT0);
+            inst_num = 1;
+            rv_program_exec(inst, inst_num);
+            rv_target_read_register(reg, RV_REG_FP);
+        }
+    } else if (regno >= RV_REG_CSR0 && regno <= (4095 + RV_REG_CSR0)) {
+        inst[0] = csrrs(RV_REG_FP, RV_REG_ZERO, regno - RV_REG_CSR0);
+        inst_num = 1;
+        rv_program_exec(inst, inst_num);
+        rv_target_read_register(reg, RV_REG_FP);
+    } else if (RV_REG_V0 < regno < RV_REG_V31) {
+        uint64_t xlen, debug_vl, encoded_vsew;
+        xlen = target.misa.mxl * 32;
+        if (MXL_RV32 == target.misa.mxl) {
+            encoded_vsew = 2 << 3;
+        } else if (MXL_RV64 == target.misa.mxl) {
+            encoded_vsew = 3 << 3;
+        }
+        debug_vl = ((target.vlenb * 8) + xlen - 1) / xlen;
+        rv_register_write_buf(&encoded_vsew, RV_REG_VTYPE);
+        rv_register_write_buf(&debug_vl, RV_REG_VL);
+        inst[0] = vmv_x_s(RV_REG_FP, regno - RV_REG_V0);
+        inst[1] = vslide1down_vx(regno - RV_REG_V0, regno - RV_REG_V0, RV_REG_FP, true);
+        inst_num = 2;
+        for (int i = 0; i < debug_vl; i++) {
+            rv_program_exec(inst, inst_num);
+            if (MXL_RV32 == target.misa.mxl) {
+                rv_target_read_register((uint32_t*)reg + i, RV_REG_FP);
+            } else if (MXL_RV64 == target.misa.mxl) {
+                rv_target_read_register((uint64_t*)reg + i, RV_REG_FP);
+            }
+        }
+    }
+
+    rv_target_write_register(&save_fp, RV_REG_FP);
+}
+
+static void rv_prep_for_vector_access()
+{
+    //prep for vector access
+    rv_register_read_buf(&save_vtype, RV_REG_VTYPE);
+    rv_register_read_buf(&save_vl, RV_REG_VL);
+}
+
+static void rv_cleanup_for_vector_access()
+{
+    //cleanup after vector access
+    rv_register_write_buf(&save_vtype, RV_REG_VTYPE);
+    rv_register_write_buf(&save_vl, RV_REG_VL);
 }
 
 static void rv_parse_watchpoint_inst(uint32_t inst, uint32_t* regno, uint32_t* offset)
@@ -813,19 +883,29 @@ void rv_target_write_core_registers(void *regs)
 void rv_target_read_register(void *reg, uint32_t regno)
 {
     rv_prep_for_register_access(regno);
-    if (regno < RV_REG_PC) {
+    if (regno >= RV_REG_ZERO && regno < RV_REG_PC) {
         rv_register_read((uint32_t*)reg, 0x1000 + regno - RV_REG_ZERO);
     } else if (regno == RV_REG_PC) {
-        rv_register_read((uint32_t*)reg, RV_REG_DPC - RV_REG_CSR0);
-    } else if (regno <= RV_REG_FT11) {
+        rv_target_read_register(reg, RV_REG_DPC);
+    } else if (regno >= RV_REG_FT0 && regno <= RV_REG_FT11) {
         rv_register_read((uint32_t*)reg, 0x1020 + regno - RV_REG_FT0);
-    } else if (regno <= (4095 + RV_REG_CSR0)) {
+        /* abstract fail try progbuf */
+        if (err_flag) {
+            rv_register_read_buf(reg, regno);
+        }
+    } else if (regno >= RV_REG_CSR0 && regno <= (4095 + RV_REG_CSR0)) {
         rv_register_read((uint32_t*)reg, regno - RV_REG_CSR0);
+        /* abstract fail try progbuf */
+        if (err_flag) {
+            rv_register_read_buf(reg, regno);
+        }
     } else if (regno == RV_REG_PRIV) {
-        rv_register_read(&dcsr.value, RV_REG_DCSR - RV_REG_CSR0);
+        rv_target_read_register(&dcsr.value, RV_REG_DCSR);
         *(uint32_t*)reg = dcsr.prv;
-    } else if (regno <= RV_REG_V31) {
-        rv_register_read_buf((uint32_t*)reg, regno - RV_REG_V0);
+    } else if (regno >= RV_REG_V0 && regno <= RV_REG_V31) {
+        rv_prep_for_vector_access();
+        rv_register_read_buf(reg, regno);
+        rv_cleanup_for_vector_access();
     } else {
         *(uint32_t*)reg = 0xffffffff;
     }
@@ -835,20 +915,30 @@ void rv_target_read_register(void *reg, uint32_t regno)
 void rv_target_write_register(void *reg, uint32_t regno)
 {
     rv_prep_for_register_access(regno);
-    if (regno < RV_REG_PC) {
+    if (regno >= RV_REG_ZERO && regno < RV_REG_PC) {
         rv_register_write((uint32_t*)reg, 0x1000 + regno - RV_REG_ZERO);
     } else if (regno == RV_REG_PC) {
-        rv_register_write((uint32_t*)reg, RV_REG_DPC - RV_REG_CSR0);
-    } else if (regno <= RV_REG_FT11) {
+        rv_target_write_register(reg, RV_REG_DPC);
+    } else if (regno >= RV_REG_FT0 && regno <= RV_REG_FT11) {
         rv_register_write((uint32_t*)reg, 0x1020 + regno - RV_REG_FT0);
-    } else if (regno <= (4095 + RV_REG_CSR0)) {
+        /* abstract fail try progbuf */
+        if (err_flag) {
+            rv_register_write_buf(reg, regno);
+        }
+    } else if (regno >= RV_REG_CSR0 && regno <= (4095 + RV_REG_CSR0)) {
         rv_register_write((uint32_t*)reg, regno - RV_REG_CSR0);
+        /* abstract fail try progbuf */
+        if (err_flag) {
+            rv_register_write_buf(reg, regno);
+        }
     } else if (regno == RV_REG_PRIV) {
-        rv_register_read(&dcsr.value, RV_REG_DCSR - RV_REG_CSR0);
+        rv_target_read_register(&dcsr.value, RV_REG_DCSR);
         dcsr.prv = *(uint32_t*)reg;
-        rv_register_write(&dcsr.value, RV_REG_DCSR - RV_REG_CSR0);
-    } else if (regno <= RV_REG_V31) {
-        rv_register_write_buf((uint32_t*)reg, regno - RV_REG_V0);
+        rv_target_write_register(&dcsr.value, RV_REG_DCSR);
+    } else if (regno >= RV_REG_V0 && regno <= RV_REG_V31) {
+        rv_prep_for_vector_access();
+        rv_register_write_buf(reg, regno);
+        rv_cleanup_for_vector_access();
     }
     rv_cleanup_after_register_access(regno);
 }
