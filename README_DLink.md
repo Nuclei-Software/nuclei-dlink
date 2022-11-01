@@ -34,7 +34,9 @@ Dlink is developed based on RV-Link, and many new functions are added on its bas
 
 # Demo DLink Harware Connection based on RV-STAR
 
-![Hardware Connection](hardware_connect.png)
+![Hardware Connection](img/hardware_connect.png)
+
+![Hardware Connection Real](img/hardware_connect_real.png)
 
 | PC  | Dlink  | Dlink       | Board |
 | --- | ------ | ----------- | ----- |
@@ -60,9 +62,11 @@ it to rvstar board.
 ```bash
 cd  nuclei_dlink
 # Suppose three git repositories are in the same directory
-# If it is not please modify Makefile
+# If it is not please modify NUCLEI_SDK_ROOT in Makefile
 make clean all upload
 ```
+
+![Dlink Firmware Program](img/dlink_firmware_program.png)
 
 ### run dlink gdbserver
 
@@ -71,58 +75,36 @@ gdb connection.
 
 ```bash
 cd dlink_gdbserver
-# Install QT and compile run dlink_gdbserver
+# Install QT and compile run dlink_gdbserver(Qt >= 6.3.1)
 qtcreator dlink_gdbserver.pro &
 # Or use the release version of dlink_gdbserver
 ./dlink_gdbserver
+# Or run it in command line mode
+./dlink_gdbserver -f ~/dlink_gdbserver.cfg
 # Make sure your profile is correct
 # then select dlink_gdbserver.cfg on the screen and click connect
 ```
 
+![Run Dlink Gdbserver](img/run_dlink_gdbserver.png)
+
 ### debug nuclei sdk application using gdb and dlink
 
-Here assume you are using Nuclei demosoc/evalsoc, with N300FD CPU on Nuclei DDR200T board.
-And you have connect rvstar(dlink firmware programmed) debug pins to DDR200T debug pins as
+Here assume you are using Nuclei demosoc, with UX900 CPU on Nuclei KU060 board.
+And you have connect rvstar(dlink firmware programmed) debug pins to KU060 debug pins as
 described above.
 
 ```bash
 cd nuclei-sdk
 cd application/baremetal/helloworld
 # compile application helloworld
-make SOC=demosoc CORE=n300fd clean all
+make SOC=demosoc CORE=ux900 clean all
 # gdb connnect to previous step opened dlink gdbserver gdb port
-make SOC=demosoc CORE=n300fd run_gdb
+make SOC=demosoc CORE=ux900 run_gdb
 # Let's start debugging in gdb now
 ```
 
-# DLink GDBServer Configuration File
+![Compile Application Helloworld](img/compile_application_helloworld.png)
 
-The dlink gdb server configuration file is named as dlink_gdbserver.cfg, below
-is a sample version.
+![Gdb Connect Gdbserver](img/gdb_connect_gdbserver.png)
 
-```textile
-gdb port 3333
-
-# The value must be modified according to the actual situation
-serial port /dev/ttyUSB1
-# It should not be modified unless you have modified board.c
-serial baud 115200
-
-# The value must be modified according to the system configuration
-transport select jtag
-# transport select cjtag
-
-# The value must be modified according to the system configuration
-workarea addr 0x80000000
-workarea size 0x1000
-workarea backup true
-
-# The value must be modified according to the system configuration
-flash spi_base 0x10014000
-flash xip_base 0x20000000
-flash xip_size 0x10000000
-flash block_size 0x10000
-# flash loader_path /home/nuclei/Git/openocd-flashloader/build/rv32/loader.bin
-flash loader_path /home/nuclei/Git/openocd-flashloader/build/rv64/loader.bin
-
-```
+![Gdb Connect Gdbserver Command Line](img/gdb_connect_gdbserver_command_line.png)
