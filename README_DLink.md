@@ -1,18 +1,20 @@
 # Introduction
 
-Dlink is developed based on RV-Link, and many new functions are added on its basis. At present, Dlink is only applicable to RV-START development board as a debugger. This document mainly introduces the new functions of Dlink, how to run Dlink in RV-START, how to connect hardware and how to use software.
+Dlink is developed based on RV-Link, and many new functions are added on its basis. At present, Dlink is only applicable to RV-STAR development board as a debugger. This document mainly introduces the new features of dlink, how to run Dlink in RV-STAR, how to connect hardware and how to use software.
 
-# Repository
+# Involved Repos
 
-https://gito.corp.nucleisys.com/software/baremetal/nuclei-sdk.git
+- Nuclei SDK: https://github.com/Nuclei-Software/nuclei-sdk
+- Nuclei DLink: https://github.com/Nuclei-Software/nuclei-dlink
+- Nuclei DLink GDBServer: https://github.com/Nuclei-Software/nuclei-dlink_gdbserver
 
-https://gito.corp.nucleisys.com/software/devtools/nuclei-dlink.git
-
-https://gito.corp.nucleisys.com/software/devtools/dlink_gdbserver.git
-
-# New-Functions
+# New Features of DLink
 
 - RV32/RV64
+
+- support f/d/v/p extension
+
+- support more csr register
 
 - JTAG/C-JTAG
 
@@ -30,13 +32,9 @@ https://gito.corp.nucleisys.com/software/devtools/dlink_gdbserver.git
 
 - software(32)/hardware(8) breakpoint
 
-- support f/d/v/p extension
+# Demo DLink Harware Connection based on RV-STAR
 
-- support more csr register
-
-# Connect-Hardware
-
-![](hardware_connect.png)
+![Hardware Connection](hardware_connect.png)
 
 | PC  | Dlink  | Dlink       | Board |
 | --- | ------ | ----------- | ----- |
@@ -46,11 +44,18 @@ https://gito.corp.nucleisys.com/software/devtools/dlink_gdbserver.git
 |     |        | GPIOB_Pin13 | TDO   |
 |     |        | GND         | GND   |
 
-# Use-Software
+# How to use dlink
 
 ## Clone Repository
 
-## Compile operation
+## Run steps
+
+### dlink firmware program
+
+This step below is used to compile dlink firmware, and upload
+it to rvstar board.
+
+> Make sure RV-STAR board is connected to your PC.
 
 ```bash
 cd  nuclei_dlink
@@ -59,8 +64,13 @@ cd  nuclei_dlink
 make clean all upload
 ```
 
+### run dlink gdbserver
+
+This step is used to bring up dlink gdb server, and wait for
+gdb connection.
+
 ```bash
-cd dlnk_gdbserver
+cd dlink_gdbserver
 # Install QT and compile run dlink_gdbserver
 qtcreator dlink_gdbserver.pro &
 # Or use the release version of dlink_gdbserver
@@ -69,13 +79,26 @@ qtcreator dlink_gdbserver.pro &
 # then select dlink_gdbserver.cfg on the screen and click connect
 ```
 
+### debug nuclei sdk application using gdb and dlink
+
+Here assume you are using Nuclei demosoc/evalsoc, with N300FD CPU on Nuclei DDR200T board.
+And you have connect rvstar(dlink firmware programmed) debug pins to DDR200T debug pins as
+described above.
+
 ```bash
 cd nuclei-sdk
-make SOC=demosoc clean all run_gdb
-# Let's start debugging
+cd application/baremetal/helloworld
+# compile application helloworld
+make SOC=demosoc CORE=n300fd clean all
+# gdb connnect to previous step opened dlink gdbserver gdb port
+make SOC=demosoc CORE=n300fd run_gdb
+# Let's start debugging in gdb now
 ```
 
-# dlink_gdbserver.cfg
+# DLink GDBServer Configuration File
+
+The dlink gdb server configuration file is named as dlink_gdbserver.cfg, below
+is a sample version.
 
 ```textile
 gdb port 3333
@@ -101,7 +124,5 @@ flash xip_size 0x10000000
 flash block_size 0x10000
 # flash loader_path /home/nuclei/Git/openocd-flashloader/build/rv32/loader.bin
 flash loader_path /home/nuclei/Git/openocd-flashloader/build/rv64/loader.bin
-
-
 
 ```
