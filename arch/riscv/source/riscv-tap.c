@@ -22,9 +22,8 @@
 
 static bool oscan1_mode = false;
 
-static void rv_jtag_tms_put(int tms)
+static inline void rv_jtag_tms_put(int tms)
 {
-    gpio_init(RV_LINK_TMS_PORT, GPIO_MODE_OUT_PP, GPIO_OSPEED_10MHZ, RV_LINK_TMS_PIN);
     if (tms) {
         GPIO_BOP(RV_LINK_TMS_PORT) = (uint32_t)RV_LINK_TMS_PIN;
     } else {
@@ -32,9 +31,8 @@ static void rv_jtag_tms_put(int tms)
     }
 }
 
-static int rv_jtag_tms_get()
+static inline int rv_jtag_tms_get()
 {
-    gpio_init(RV_LINK_TMS_PORT, GPIO_MODE_IPU, 0, RV_LINK_TMS_PIN);
     if ((uint32_t) RESET != (GPIO_ISTAT(RV_LINK_TMS_PORT) & (RV_LINK_TMS_PIN))) {
         return 1;
     } else {
@@ -42,9 +40,8 @@ static int rv_jtag_tms_get()
     }
 }
 
-static void rv_jtag_tdi_put(int tdi)
+static inline void rv_jtag_tdi_put(int tdi)
 {
-    gpio_init(RV_LINK_TDI_PORT, GPIO_MODE_OUT_PP, GPIO_OSPEED_10MHZ, RV_LINK_TDI_PIN);
     if (tdi) {
         GPIO_BOP(RV_LINK_TDI_PORT) = (uint32_t)RV_LINK_TDI_PIN;
     } else {
@@ -52,9 +49,8 @@ static void rv_jtag_tdi_put(int tdi)
     }
 }
 
-static void rv_jtag_tck_put(int tck)
+static inline void rv_jtag_tck_put(int tck)
 {
-    gpio_init(RV_LINK_TCK_PORT, GPIO_MODE_OUT_PP, GPIO_OSPEED_10MHZ, RV_LINK_TCK_PIN);
     if (tck) {
         GPIO_BOP(RV_LINK_TCK_PORT) = (uint32_t)RV_LINK_TCK_PIN;
     } else {
@@ -62,9 +58,8 @@ static void rv_jtag_tck_put(int tck)
     }
 }
 
-static int rv_jtag_tdo_get()
+static inline int rv_jtag_tdo_get()
 {
-    gpio_init(RV_LINK_TDO_PORT, GPIO_MODE_IPU, 0, RV_LINK_TDO_PIN);
     if ((uint32_t) RESET != (GPIO_ISTAT(RV_LINK_TDO_PORT) & (RV_LINK_TDO_PIN))) {
         return 1;
     } else {
@@ -75,6 +70,10 @@ static int rv_jtag_tdo_get()
 void rv_tap_init(void)
 {
     rv_jtag_init();
+    gpio_init(RV_LINK_TCK_PORT, GPIO_MODE_OUT_PP, GPIO_OSPEED_10MHZ, RV_LINK_TCK_PIN);
+    gpio_init(RV_LINK_TMS_PORT, GPIO_MODE_OUT_PP, GPIO_OSPEED_10MHZ, RV_LINK_TMS_PIN);
+    gpio_init(RV_LINK_TDI_PORT, GPIO_MODE_OUT_PP, GPIO_OSPEED_10MHZ, RV_LINK_TDI_PIN);
+    gpio_init(RV_LINK_TDO_PORT, GPIO_MODE_IPU, 0, RV_LINK_TDO_PIN);
 }
 
 void rv_tap_deinit(void)
@@ -87,16 +86,22 @@ static uint32_t rv_tap_tick(uint32_t tms, uint32_t tdi)
     int tdo;
 
     if (oscan1_mode) {
-            /*
+        /*
         *     ___     ___     ___
         * ___|   |___|   |___|   |
         */
+        gpio_init(RV_LINK_TMS_PORT, GPIO_MODE_OUT_PP, GPIO_OSPEED_10MHZ, RV_LINK_TMS_PIN);
         rv_jtag_tms_put(tdi);
         rv_jtag_tck_put(1);
         rv_jtag_tck_put(0);
         rv_jtag_tms_put(tms);
         rv_jtag_tck_put(1);
         rv_jtag_tck_put(0);
+        if (tms) {
+            gpio_init(RV_LINK_TMS_PORT, GPIO_MODE_IPU, 0, RV_LINK_TMS_PIN);
+        } else {
+            gpio_init(RV_LINK_TMS_PORT, GPIO_MODE_IPD, 0, RV_LINK_TMS_PIN);
+        }
         tdo = rv_jtag_tms_get();
         rv_jtag_tck_put(1);
         rv_jtag_tck_put(0);
