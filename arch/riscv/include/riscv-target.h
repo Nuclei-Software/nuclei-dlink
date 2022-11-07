@@ -120,12 +120,12 @@ typedef struct
 } rv_target_halt_info_t;
 
 typedef enum {
-    TARGET_INTERFACE_JTAG,
-    TARGET_INTERFACE_CJTAG,
-    TARGET_INTERFACE_TWDI,
-    TARGET_INTERFACE_NW,
-    TARGET_INTERFACE_MAX,
-} rv_target_interface_t;
+    TARGET_PROTOCOL_JTAG,
+    TARGET_PROTOCOL_CJTAG,
+    TARGET_PROTOCOL_TWDI,
+    TARGET_PROTOCOL_NW,
+    TARGET_PROTOCOL_MAX,
+} rv_target_protocol_t;
 
 typedef union {
     uint32_t value;
@@ -218,7 +218,7 @@ void rv_target_deinit(void);
 uint32_t rv_target_misa(void);
 uint32_t rv_target_mxl(void);
 uint64_t rv_target_vlenb(void);
-void rv_target_set_interface(rv_target_interface_t interface);
+void rv_target_set_protocol(rv_target_protocol_t protocol);
 void rv_target_init_post(rv_target_error_t *err);
 void rv_target_init_after_halted(rv_target_error_t *err);
 void rv_target_fini_pre(void);
@@ -494,7 +494,7 @@ typedef union {
             rv_tr32_reg_t dmode: 1;
             rv_tr32_reg_t type: 4;
         } ic;
-        /* itrigger while type=4 
+        /* itrigger while type=4
             etrigger while type=5 */
         struct {
             rv_tr32_reg_t action: 6;
@@ -594,7 +594,7 @@ typedef union {
             rv_tr64_reg_t dmode: 1;
             rv_tr64_reg_t type: 4;
         } ic;
-        /* itrigger while type=4 
+        /* itrigger while type=4
             etrigger while type=5 */
         struct {
             rv_tr64_reg_t action: 6;

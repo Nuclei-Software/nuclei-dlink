@@ -70,10 +70,6 @@ static inline int rv_jtag_tdo_get()
 void rv_tap_init(void)
 {
     rv_jtag_init();
-    gpio_init(RV_LINK_TCK_PORT, GPIO_MODE_OUT_PP, GPIO_OSPEED_10MHZ, RV_LINK_TCK_PIN);
-    gpio_init(RV_LINK_TMS_PORT, GPIO_MODE_OUT_PP, GPIO_OSPEED_10MHZ, RV_LINK_TMS_PIN);
-    gpio_init(RV_LINK_TDI_PORT, GPIO_MODE_OUT_PP, GPIO_OSPEED_10MHZ, RV_LINK_TDI_PIN);
-    gpio_init(RV_LINK_TDO_PORT, GPIO_MODE_IPU, 0, RV_LINK_TDO_PIN);
 }
 
 void rv_tap_deinit(void)

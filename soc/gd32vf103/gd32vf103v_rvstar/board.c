@@ -52,7 +52,7 @@ void rv_transport_init(void)
 
     // Enable interrupts in general.
     __enable_irq();
-    ECLIC_Register_IRQ(UART4_IRQn, 
+    ECLIC_Register_IRQ(UART4_IRQn,
                         ECLIC_NON_VECTOR_INTERRUPT,
                         ECLIC_LEVEL_TRIGGER,
                         1,
@@ -68,7 +68,7 @@ void rv_transport_init(void)
     gpio_init(GPIOD, GPIO_MODE_IPU, GPIO_OSPEED_10MHZ, GPIO_PIN_2);
     /* USART configure */
     usart_deinit(UART4);
-    usart_baudrate_set(UART4, 115200U);
+    usart_baudrate_set(UART4, 921600);
     usart_word_length_set(UART4, USART_WL_8BIT);
     usart_stop_bit_set(UART4, USART_STB_1BIT);
     usart_parity_config(UART4, USART_PM_NONE);

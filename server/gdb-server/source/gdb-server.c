@@ -34,7 +34,7 @@ typedef struct gdb_server_s
     bool restore_reg_flag;
     rv_target_halt_info_t halt_info;
     rv_target_error_t target_error;
-    
+
     uint64_t mem_addr;
     uint32_t mem_len;
     uint8_t mem_buffer[GDB_PACKET_BUFF_SIZE];
@@ -536,15 +536,17 @@ void gdb_server_cmd_custom_set(const char* data)
     const char *p;
 
     p = strchr(data, ':') + 1;
-    if (strncmp(p, "interface", strlen("interface")) == 0) {
+    if (strncmp(p, "protocol", strlen("protocol")) == 0) {
         p = strchr(p, ':') + 1;
         if (strncmp(p, "jtag", strlen("jtag")) == 0) {
-            rv_target_set_interface(TARGET_INTERFACE_JTAG);
+            rv_target_set_protocol(TARGET_PROTOCOL_JTAG);
+            strncpy(rsp.data, "-:set:protocol:jtag:OK;", 24);
+            rsp.len = 23;
         } else if (strncmp(p, "cjtag", strlen("cjtag")) == 0) {
-            rv_target_set_interface(TARGET_INTERFACE_CJTAG);
+            rv_target_set_protocol(TARGET_PROTOCOL_CJTAG);
+            strncpy(rsp.data, "-:set:protocol:cjtag:OK;", 24);
+            rsp.len = 24;
         }
-        strncpy(rsp.data, "-:set:interface:jtag:OK;", 24);
-        rsp.len = 24;
         xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
         gdb_server_connected();
     }
@@ -771,9 +773,9 @@ static void hex_to_uint32_le(const char *hex, uint32_t *data)
 
     hex_to_bin(hex, bytes, 4);
 
-    *data = (uint32_t)bytes[0] | 
-            ((uint32_t)bytes[1] << 8) | 
-            ((uint32_t)bytes[2] << 16) | 
+    *data = (uint32_t)bytes[0] |
+            ((uint32_t)bytes[1] << 8) |
+            ((uint32_t)bytes[2] << 16) |
             ((uint32_t)bytes[3] << 24);
 }
 
@@ -783,13 +785,13 @@ static void hex_to_uint64_le(const char *hex, uint64_t *data)
 
     hex_to_bin(hex, bytes, 8);
 
-    *data = (uint64_t)bytes[0] | 
-            ((uint64_t)bytes[1] << 8) | 
-            ((uint64_t)bytes[2] << 16) | 
-            ((uint64_t)bytes[3] << 24) | 
-            ((uint64_t)bytes[4] << 32) | 
-            ((uint64_t)bytes[5] << 40) | 
-            ((uint64_t)bytes[6] << 48) | 
+    *data = (uint64_t)bytes[0] |
+            ((uint64_t)bytes[1] << 8) |
+            ((uint64_t)bytes[2] << 16) |
+            ((uint64_t)bytes[3] << 24) |
+            ((uint64_t)bytes[4] << 32) |
+            ((uint64_t)bytes[5] << 40) |
+            ((uint64_t)bytes[6] << 48) |
             ((uint64_t)bytes[7] << 56);
 }
 

@@ -19,6 +19,7 @@ INCDIRS = . \
 		soc/gd32vf103/gd32vf103v_rvstar
 
 SOC := gd32vf103
-SYSCLK := 96000000
+SYSCLK := 108000000
+CLKSRC := irc8m
 
 include $(NUCLEI_SDK_ROOT)/Build/Makefile.base

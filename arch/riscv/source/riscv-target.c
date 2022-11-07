@@ -30,14 +30,14 @@ typedef struct {
     rv_dmi_t dmi;
     rv_misa_rv32_t misa;
     uint64_t vlenb;
-    rv_target_interface_t interface;
+    rv_target_protocol_t protocol;
 } rv_target_t;
 
 static rv_target_t target;
 rv_dcsr_t dcsr;
 uint64_t dpc;
 
-uint32_t zero = 0; 
+uint32_t zero = 0;
 uint32_t result;
 bool err_flag;
 const char *err_msg;
@@ -84,7 +84,7 @@ static void rv_dtm_sync(uint32_t reg)
         rv_tap_shift_ir(temp_out, temp_in, 5, rv_target_ir_post, rv_target_ir_pre);
     }
     last_reg = reg;
-    
+
     temp_in[0] = target.dmi.data;
     switch (reg) {
         case RV_DTM_JTAG_REG_IDCODE:
@@ -180,7 +180,7 @@ static void rv_prep_for_register_access(uint32_t regno)
         mstatus |= MSTATUS_FS;
         rv_target_write_register(&mstatus, RV_REG_MSTATUS);
     }
-    if (((regno >= RV_REG_V0) && (regno <= RV_REG_V31)) || 
+    if (((regno >= RV_REG_V0) && (regno <= RV_REG_V31)) ||
         ((regno >= RV_REG_VSTART) && (regno <= RV_REG_VCSR)) ||
         ((regno >= RV_REG_VL) && (regno <= RV_REG_VLENB))) {
         rv_target_read_register(&mstatus, RV_REG_MSTATUS);
@@ -197,7 +197,7 @@ static void rv_cleanup_after_register_access(uint32_t regno)
         mstatus &= ~MSTATUS_FS;
         rv_target_write_register(&mstatus, RV_REG_MSTATUS);
     }
-    if (((regno >= RV_REG_V0) && (regno <= RV_REG_V31)) || 
+    if (((regno >= RV_REG_V0) && (regno <= RV_REG_V31)) ||
         ((regno >= RV_REG_VSTART) && (regno <= RV_REG_VCSR)) ||
         ((regno >= RV_REG_VL) && (regno <= RV_REG_VLENB))) {
         rv_target_read_register(&mstatus, RV_REG_MSTATUS);
@@ -720,16 +720,16 @@ uint64_t rv_target_vlenb(void)
     return target.vlenb;
 }
 
-void rv_target_set_interface(rv_target_interface_t interface)
+void rv_target_set_protocol(rv_target_protocol_t protocol)
 {
-    target.interface = interface;
+    target.protocol = protocol;
 }
 
 void rv_target_init_post(rv_target_error_t *err)
 {
     rv_tap_reset(32);
 
-    if (TARGET_INTERFACE_CJTAG == target.interface) {
+    if (TARGET_PROTOCOL_CJTAG == target.protocol) {
         rv_tap_oscan1_mode(rv_target_dr_post, rv_target_dr_pre, rv_target_ir_post, rv_target_ir_pre);
     }
 
@@ -1286,8 +1286,8 @@ void rv_target_remove_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr
 
     if (type == rv_target_breakpoint_type_software) {
         for(i = 0; i < RV_TARGET_CONFIG_SOFTWARE_BREAKPOINT_NUM; i++) {
-            if ((software_breakpoints[i].type == type) && 
-                (software_breakpoints[i].addr == addr) && 
+            if ((software_breakpoints[i].type == type) &&
+                (software_breakpoints[i].addr == addr) &&
                 (software_breakpoints[i].kind == kind)) {
                 rv_memory_write((const uint8_t*)&software_breakpoints[i].inst,
                                 addr,
@@ -1305,8 +1305,8 @@ void rv_target_remove_breakpoint(rv_target_breakpoint_type_t type, uint64_t addr
         tselect_rd = 0;
         rv_target_read_register(&tselect, RV_REG_TSELECT);
         for(i = 0; i < RV_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM; i++) {
-            if ((hardware_breakpoints[i].type == type) && 
-                (hardware_breakpoints[i].addr == addr) && 
+            if ((hardware_breakpoints[i].type == type) &&
+                (hardware_breakpoints[i].addr == addr) &&
                 (hardware_breakpoints[i].kind == kind)) {
                 if (MXL_RV32 == target.misa.mxl) {
                     target.tr32.tselect = i;
