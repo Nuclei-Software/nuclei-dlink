@@ -800,8 +800,11 @@ void rv_target_init_after_halted(rv_target_error_t *err)
         target.misa.value = misa64.value;
         target.misa.mxl = misa64.mxl;
     }
-
-    rv_target_read_register(&target.vlenb, RV_REG_VLENB);
+    if (target.misa.v) {
+        rv_target_read_register(&target.vlenb, RV_REG_VLENB);
+    } else {
+        target.vlenb = 0xFFFFFFFF;
+    }
 
     rv_target_read_register(&dcsr.value, RV_REG_DCSR);
     if (dcsr.xdebugver != 4) {

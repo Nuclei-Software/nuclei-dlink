@@ -221,6 +221,8 @@ void gdb_server_cmd_qRcmd(void)
         rv_target_reset();
         gdb_server_reply_ok();
     } else if (strncmp((char*)gdb_server_i.mem_buffer, "halt", 4) == 0) {
+        rv_target_halt();
+        rv_target_init_after_halted(&gdb_server_i.target_error);
         gdb_server_reply_ok();
     } else if (strncmp((char*)gdb_server_i.mem_buffer, "show error", 10) == 0) {
         rv_target_get_error(&err_str, &err_pc);
