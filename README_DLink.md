@@ -7,6 +7,7 @@ Dlink is developed based on RV-Link, and many new functions are added on its bas
 - Nuclei SDK: https://github.com/Nuclei-Software/nuclei-sdk
 - Nuclei DLink: https://github.com/Nuclei-Software/nuclei-dlink
 - Nuclei DLink GDBServer: https://github.com/Nuclei-Software/nuclei-dlink_gdbserver
+- Open Flashloader: https://github.com/riscv-mcu/openflashloader
 
 # New Features of DLink
 
