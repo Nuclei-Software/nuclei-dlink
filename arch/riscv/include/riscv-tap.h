@@ -16,6 +16,14 @@
  * PURPOSE.
  * See the Mulan PSL v1 for more details.
  */
+
+#ifndef __RISCV_TAP_H__
+#define __RISCV_TAP_H__
+
+#ifdef __cplusplus
+ extern "C" {
+#endif
+
 #include <stdint.h>
 
 void rv_tap_init(void);
@@ -25,3 +33,9 @@ void rv_tap_idle(uint32_t len);
 void rv_tap_shift_dr(uint32_t* out, uint32_t* in, uint32_t len, uint32_t post, uint32_t pre);
 void rv_tap_shift_ir(uint32_t* out, uint32_t* in, uint32_t len, uint32_t post, uint32_t pre);
 void rv_tap_oscan1_mode(uint32_t dr_post, uint32_t dr_pre, uint32_t ir_post, uint32_t ir_pre);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __RISCV_TAP_H__ */

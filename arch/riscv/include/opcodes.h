@@ -1,3 +1,10 @@
+#ifndef __OPCODES_H__
+#define __OPCODES_H__
+
+#ifdef __cplusplus
+ extern "C" {
+#endif
+
 #include <stdint.h>
 #include "encoding.h"
 
@@ -337,3 +344,8 @@ static uint32_t vslide1down_vx(unsigned int vd, unsigned int vs2,
 	return ((vm & 1) << 25) | inst_rs2(vs2) | inst_rs1(rs1) | inst_rd(vd) | MATCH_VSLIDE1DOWN_VX;
 }
 
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __OPCODES_H__ */

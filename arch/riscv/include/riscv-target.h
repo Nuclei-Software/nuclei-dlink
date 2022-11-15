@@ -16,9 +16,15 @@
  * PURPOSE.
  * See the Mulan PSL v1 for more details.
  */
-#include <stdint.h>
-#include <stddef.h>
-#include "config.h"
+
+#ifndef __RISCV_TARGET_H__
+#define __RISCV_TARGET_H__
+
+#ifdef __cplusplus
+ extern "C" {
+#endif
+
+#include "port.h"
 
 #define MXL_RV32                   (1)
 #define MXL_RV64                   (2)
@@ -694,3 +700,9 @@ typedef struct {
     rv_dmi_reg_t data;
     rv_dmi_reg_t address;
 } rv_dmi_t;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __RISCV_TARGET_H__ */

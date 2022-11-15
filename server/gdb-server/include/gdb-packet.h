@@ -24,7 +24,7 @@
  extern "C" {
 #endif
 
-#include "config.h"
+#include "port.h"
 
 typedef struct {
     uint32_t len;

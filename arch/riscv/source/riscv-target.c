@@ -20,7 +20,7 @@
 #include "riscv-tap.h"
 #include "encoding.h"
 #include "opcodes.h"
-#include "config.h"
+#include "port.h"
 
 typedef struct {
     rv_dm_t dm;

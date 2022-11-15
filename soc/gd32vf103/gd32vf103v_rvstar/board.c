@@ -17,7 +17,6 @@
  * See the Mulan PSL v1 for more details.
  */
 
-#include "config.h"
 #include "gdb-packet.h"
 
 TaskHandle_t transport_tx_xHandle = NULL;

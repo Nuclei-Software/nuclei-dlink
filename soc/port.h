@@ -24,7 +24,33 @@
  extern "C" {
 #endif
 
-#include "config.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stddef.h>
+/* Kernel includes. */
+#include "FreeRTOS.h" /* Must come first. */
+#include "queue.h"    /* RTOS queue related API prototypes. */
+#include "task.h"     /* RTOS task related API prototypes. */
+
+#ifndef RV_TARGET_CONFIG_DMI_RETRIES
+#define RV_TARGET_CONFIG_DMI_RETRIES                    (6)
+#endif
+
+#ifndef RV_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM
+#define RV_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM        (8)
+#endif
+
+#ifndef RV_TARGET_CONFIG_SOFTWARE_BREAKPOINT_NUM
+#define RV_TARGET_CONFIG_SOFTWARE_BREAKPOINT_NUM        (32)
+#endif
+
+#define RV_TARGET_CONFIG_REG_NUM           (33)
+
+#define GDB_DATA_CACHE_SIZE                 (1024)
+#define GDB_PACKET_BUFF_SIZE                (1024 + 64)//PacketSize:0x440
+#define GDB_PACKET_BUFF_NUM                 (2)
 
 void rv_jtag_init(void);
 void rv_jtag_fini(void);

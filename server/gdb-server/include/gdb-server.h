@@ -24,7 +24,7 @@
  extern "C" {
 #endif
 
-#include "config.h"
+#include "port.h"
 
 void gdb_server_init(void);
 void gdb_server_poll(void);

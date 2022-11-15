@@ -17,10 +17,9 @@
  * See the Mulan PSL v1 for more details.
  */
 
-#include "config.h"
+#include "port.h"
 #include "gdb-server.h"
 #include "gdb-packet.h"
-#include "port.h"
 
 TaskHandle_t gdb_server_xHandle = NULL;
 

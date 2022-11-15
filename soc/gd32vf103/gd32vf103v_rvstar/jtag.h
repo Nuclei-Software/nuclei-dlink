@@ -24,35 +24,8 @@
  extern "C" {
 #endif
 
-#include <stdio.h>
-#include <string.h>
-#include <stdbool.h>
-
-/* Kernel includes. */
-#include "FreeRTOS.h" /* Must come first. */
-#include "queue.h"    /* RTOS queue related API prototypes. */
-#include "task.h"     /* RTOS task related API prototypes. */
-
 /* other library header file includes */
 #include "nuclei_sdk_soc.h"
-
-#ifndef RV_TARGET_CONFIG_DMI_RETRIES
-#define RV_TARGET_CONFIG_DMI_RETRIES                    (6)
-#endif
-
-#ifndef RV_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM
-#define RV_TARGET_CONFIG_HARDWARE_BREAKPOINT_NUM        (8)
-#endif
-
-#ifndef RV_TARGET_CONFIG_SOFTWARE_BREAKPOINT_NUM
-#define RV_TARGET_CONFIG_SOFTWARE_BREAKPOINT_NUM        (32)
-#endif
-
-#define RV_TARGET_CONFIG_REG_NUM           (33)
-
-#define GDB_DATA_CACHE_SIZE                 (1024)
-#define GDB_PACKET_BUFF_SIZE                (1024 + 64)//PacketSize:0x440
-#define GDB_PACKET_BUFF_NUM                 (2)
 
 /* JTAG TCK pin definition */
 #define RV_LINK_TCK_PORT                   GPIOA
@@ -69,6 +42,16 @@
 /* JTAG TDO pin definition */
 #define RV_LINK_TDO_PORT                   GPIOB
 #define RV_LINK_TDO_PIN                    GPIO_PIN_13 /* PB13, JTDO */
+
+void rv_jtag_tck_put(int tck);
+
+void rv_jtag_tms_put(int tms);
+
+int rv_jtag_tms_get(int tms);
+
+void rv_jtag_tdi_put(int tdi);
+
+int rv_jtag_tdo_get();
 
 #ifdef __cplusplus
 }
