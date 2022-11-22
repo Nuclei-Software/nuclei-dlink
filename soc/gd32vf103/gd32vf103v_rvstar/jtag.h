@@ -43,11 +43,15 @@
 #define RV_LINK_TDO_PORT                   GPIOB
 #define RV_LINK_TDO_PIN                    GPIO_PIN_13 /* PB13, JTDO */
 
+void rv_jtag_init(void);
+
+void rv_jtag_fini(void);
+
 void rv_jtag_tck_put(int tck);
 
 void rv_jtag_tms_put(int tms);
 
-int rv_jtag_tms_get(int tms);
+int rv_jtag_tms_get();
 
 void rv_jtag_tdi_put(int tdi);
 

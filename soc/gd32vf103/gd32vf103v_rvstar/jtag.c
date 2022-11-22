@@ -58,13 +58,9 @@ void rv_jtag_tms_put(int tms)
     }
 }
 
-int rv_jtag_tms_get(int tms)
+int rv_jtag_tms_get()
 {
-    if (tms) {
-        gpio_init(RV_LINK_TMS_PORT, GPIO_MODE_IPU, 0, RV_LINK_TMS_PIN);
-    } else {
-        gpio_init(RV_LINK_TMS_PORT, GPIO_MODE_IPD, 0, RV_LINK_TMS_PIN);
-    }
+    gpio_init(RV_LINK_TMS_PORT, GPIO_MODE_IPD, 0, RV_LINK_TMS_PIN);
     if ((uint32_t) RESET != (GPIO_ISTAT(RV_LINK_TMS_PORT) & (RV_LINK_TMS_PIN))) {
         return 1;
     } else {

@@ -24,6 +24,7 @@ static bool oscan1_mode = false;
 
 void rv_tap_init(void)
 {
+    oscan1_mode = false;
     rv_jtag_init();
 }
 
@@ -41,13 +42,13 @@ static uint32_t rv_tap_tick(uint32_t tms, uint32_t tdi)
         *     ___     ___     ___
         * ___|   |___|   |___|   |
         */
-        rv_jtag_tms_put(tdi);
+        rv_jtag_tms_put(tdi ^ 1);
         rv_jtag_tck_put(1);
         rv_jtag_tck_put(0);
         rv_jtag_tms_put(tms);
         rv_jtag_tck_put(1);
         rv_jtag_tck_put(0);
-        tdo = rv_jtag_tms_get(tms);
+        tdo = rv_jtag_tms_get();
         rv_jtag_tck_put(1);
         rv_jtag_tck_put(0);
     } else {
@@ -77,7 +78,7 @@ static void rv_tap_shift(uint32_t* out, uint32_t *in, uint32_t len, uint32_t pos
             rv_tap_tick(0, 1);/* Shift-DR(IR) -> Shift-DR(IR) */
         }
         for(i = 0; i < len; i++) {
-            if ((i == len - 1) && (post == 0)) {
+            if ((i == len - 1) && (pre == 0)) {
                 tdo = rv_tap_tick(1, (in[i / 32] >> (i % 32)) & 1);/* Shift-DR(IR) -> Exit1-DR(IR) */
             } else {
                 tdo = rv_tap_tick(0, (in[i / 32] >> (i % 32)) & 1);/* Shift-DR(IR) -> Shift-DR(IR) */
@@ -135,7 +136,8 @@ void rv_tap_shift_ir(uint32_t* out, uint32_t* in, uint32_t len, uint32_t post, u
 
 void rv_tap_oscan1_mode(uint32_t dr_post, uint32_t dr_pre, uint32_t ir_post, uint32_t ir_pre)
 {
-    uint32_t temp;
+    uint32_t tdi = 0xFFFFFFFF;
+    uint32_t tdo;
 
     oscan1_mode = false;
 
@@ -143,15 +145,15 @@ void rv_tap_oscan1_mode(uint32_t dr_post, uint32_t dr_pre, uint32_t ir_post, uin
     rv_tap_reset(50);
 
     // 2 DR ZBS
-    rv_tap_shift_dr(&temp, &temp, 0, dr_post, dr_pre);
-    rv_tap_shift_dr(&temp, &temp, 0, dr_post, dr_pre);
+    rv_tap_shift_dr(&tdo, &tdi, 0, dr_post, dr_pre);
+    rv_tap_shift_dr(&tdo, &tdi, 0, dr_post, dr_pre);
 
     // enter command level 2
-    rv_tap_shift_dr(&temp, &temp, 1, dr_post, dr_pre);
+    rv_tap_shift_dr(&tdo, &tdi, 1, dr_post, dr_pre);
 
     // set scan format to OScan1
-    rv_tap_shift_dr(&temp, &temp, 3, dr_post, dr_pre);//cp0 = 3
-    rv_tap_shift_dr(&temp, &temp, 9, dr_post, dr_pre);//cp1 = 9
+    rv_tap_shift_dr(&tdo, &tdi, 3, dr_post, dr_pre);//cp0 = 3
+    rv_tap_shift_dr(&tdo, &tdi, 9, dr_post, dr_pre);//cp1 = 9
 
     // check packet
     rv_tap_idle(4);
@@ -160,18 +162,20 @@ void rv_tap_oscan1_mode(uint32_t dr_post, uint32_t dr_pre, uint32_t ir_post, uin
     oscan1_mode = true;
 
     // read back0 register
-    rv_tap_shift_dr(&temp, &temp, 9, dr_post, dr_pre);//cp0 = 9
-    rv_tap_shift_dr(&temp, &temp, 0, dr_post, dr_pre);//cp1 = 0
-    rv_tap_shift_dr(&temp, &temp, 32, dr_post, dr_pre);//crscan = 32
-    if ((temp & 0x3F) != 9) {
-        rv_tap_reset(50);
+    rv_tap_shift_dr(&tdo, &tdi, 9, dr_post, dr_pre);//cp0 = 9
+    rv_tap_shift_dr(&tdo, &tdi, 0, dr_post, dr_pre);//cp1 = 0
+    rv_tap_shift_dr(&tdo, &tdi, 32, dr_post, dr_pre);//crscan = 32
+    if ((tdo & 0x3F) != 9) {
         oscan1_mode = false;
+        rv_tap_reset(50);
         return;
     }
 
     // check packet
+    oscan1_mode = false;
     rv_tap_idle(4);
+    oscan1_mode = true;
 
     // 1 IR ZBS
-    rv_tap_shift_ir(&temp, &temp, 0, ir_post, ir_pre);
+    rv_tap_shift_ir(&tdo, &tdi, 0, ir_post, ir_pre);
 }

@@ -55,13 +55,9 @@ void rv_jtag_tms_put(int tms)
     GPIO_WriteBit(RV_LINK_TMS_PORT, RV_LINK_TMS_PIN, tms);
 }
 
-int rv_jtag_tms_get(int tms)
+int rv_jtag_tms_get()
 {
-    if (tms) {
-        GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_IPU;
-    } else {
-        GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_IPD;
-    }
+    GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_IPD;
     GPIO_InitStructure.Pin        = RV_LINK_TMS_PIN;
     GPIO_Init(RV_LINK_TMS_PORT, &GPIO_InitStructure);
     return GPIO_ReadInputDataBit(RV_LINK_TMS_PORT, RV_LINK_TMS_PIN);

@@ -52,9 +52,6 @@
 #define GDB_PACKET_BUFF_SIZE                (1024 + 64)//PacketSize:0x440
 #define GDB_PACKET_BUFF_NUM                 (2)
 
-void rv_jtag_init(void);
-void rv_jtag_fini(void);
-
 void rv_transport_init(void);
 
 #ifdef __cplusplus
