@@ -81,7 +81,7 @@ void rv_transport_init(void)
 
     /* USARTy and USARTz configuration ------------------------------------------------------*/
     USART_InitType USART_InitStructure;
-    USART_InitStructure.BaudRate            = 115200; /* Band rate is too high may cause data lost in this example.
+    USART_InitStructure.BaudRate            = 921600; /* Band rate is too high may cause data lost in this example.
                                                     When system clock is 8M, the maximum band rate allowed is 38400 */
     USART_InitStructure.WordLength          = USART_WL_8B;
     USART_InitStructure.StopBits            = USART_STPB_1;
