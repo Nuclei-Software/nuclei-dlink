@@ -33,7 +33,7 @@ void rv_tap_deinit(void)
     rv_jtag_fini();
 }
 
-static uint32_t rv_tap_tick(uint32_t tms, uint32_t tdi)
+static inline uint32_t rv_tap_tick(uint32_t tms, uint32_t tdi)
 {
     int tdo;
 
@@ -42,31 +42,33 @@ static uint32_t rv_tap_tick(uint32_t tms, uint32_t tdi)
         *     ___     ___     ___
         * ___|   |___|   |___|   |
         */
-        rv_jtag_tms_put(tdi ^ 1);
-        rv_jtag_tck_put(1);
-        rv_jtag_tck_put(0);
-        rv_jtag_tms_put(tms);
-        rv_jtag_tck_put(1);
-        rv_jtag_tck_put(0);
-        tdo = rv_jtag_tms_get();
-        rv_jtag_tck_put(1);
-        rv_jtag_tck_put(0);
+        RV_JTAG_TMS_PUT(tdi ^ 1);
+        RV_JTAG_TCK_PUT(1);
+        RV_JTAG_TCK_PUT(0);
+        RV_JTAG_TMS_PUT(tms);
+        RV_JTAG_TCK_PUT(1);
+        RV_JTAG_TCK_PUT(0);
+        RV_JTAG_TMS_MODE(0);
+        tdo = RV_JTAG_TMS_GET;
+        RV_JTAG_TCK_PUT(1);
+        RV_JTAG_TCK_PUT(0);
+        RV_JTAG_TMS_MODE(1);
     } else {
         /*
         *     ___
         * ___|   |
         */
-        rv_jtag_tdi_put(tdi);
-        rv_jtag_tms_put(tms);
-        rv_jtag_tck_put(1);
-        tdo = rv_jtag_tdo_get();
-        rv_jtag_tck_put(0);
+        RV_JTAG_TDI_PUT(tdi);
+        RV_JTAG_TMS_PUT(tms);
+        RV_JTAG_TCK_PUT(1);
+        tdo = RV_JTAG_TDO_GET;
+        RV_JTAG_TCK_PUT(0);
     }
 
     return tdo;
 }
 
-static void rv_tap_shift(uint32_t* out, uint32_t *in, uint32_t len, uint32_t post, uint32_t pre)
+static inline void rv_tap_shift(uint32_t* out, uint32_t *in, uint32_t len, uint32_t post, uint32_t pre)
 {
     int i, tdo;
 

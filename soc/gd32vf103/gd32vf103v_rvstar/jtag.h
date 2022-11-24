@@ -30,32 +30,49 @@
 /* JTAG TCK pin definition */
 #define RV_LINK_TCK_PORT                   GPIOA
 #define RV_LINK_TCK_PIN                    GPIO_PIN_4 /* PA4, JTCK */
+#define RV_LINK_TCK_PIN_SOURCE             GPIO_PIN_SOURCE_4
 
 /* JTAG TMS pin definition */
 #define RV_LINK_TMS_PORT                   GPIOB
 #define RV_LINK_TMS_PIN                    GPIO_PIN_15 /* PB15, JTMS */
+#define RV_LINK_TMS_PIN_SOURCE             GPIO_PIN_SOURCE_15
 
 /* JTAG TDI pin definition */
 #define RV_LINK_TDI_PORT                   GPIOB
 #define RV_LINK_TDI_PIN                    GPIO_PIN_14 /* PB14, JTDI */
+#define RV_LINK_TDI_PIN_SOURCE             GPIO_PIN_SOURCE_14
 
 /* JTAG TDO pin definition */
 #define RV_LINK_TDO_PORT                   GPIOB
 #define RV_LINK_TDO_PIN                    GPIO_PIN_13 /* PB13, JTDO */
+#define RV_LINK_TDO_PIN_SOURCE             GPIO_PIN_SOURCE_13
+
+#define RV_JTAG_TCK_PUT(tck) \
+if (tck) { GPIO_BOP(RV_LINK_TCK_PORT) = RV_LINK_TCK_PIN; } \
+    else { GPIO_BC(RV_LINK_TCK_PORT) = RV_LINK_TCK_PIN; }
+
+#define RV_JTAG_TMS_MODE(out) \
+if (out) { GPIO_CTL1(RV_LINK_TMS_PORT) = 0x33800000; } \
+    else { GPIO_CTL1(RV_LINK_TMS_PORT) = 0x83800000; \
+    GPIO_BC(RV_LINK_TMS_PORT) = RV_LINK_TMS_PIN; }
+
+#define RV_JTAG_TMS_PUT(tms) \
+if (tms) { GPIO_BOP(RV_LINK_TMS_PORT) = RV_LINK_TMS_PIN; } \
+    else { GPIO_BC(RV_LINK_TMS_PORT) = RV_LINK_TMS_PIN; }
+
+#define RV_JTAG_TMS_GET \
+(GPIO_ISTAT(RV_LINK_TMS_PORT) & RV_LINK_TMS_PIN) >> RV_LINK_TMS_PIN_SOURCE
+
+#define RV_JTAG_TDI_PUT(tdi)  \
+if (tdi) { GPIO_BOP(RV_LINK_TDI_PORT) = RV_LINK_TDI_PIN; } \
+    else { GPIO_BC(RV_LINK_TDI_PORT) = RV_LINK_TDI_PIN; }
+
+#define RV_JTAG_TDO_GET \
+(GPIO_ISTAT(RV_LINK_TDO_PORT) & RV_LINK_TDO_PIN) >> RV_LINK_TDO_PIN_SOURCE
 
 void rv_jtag_init(void);
 
 void rv_jtag_fini(void);
-
-void rv_jtag_tck_put(int tck);
-
-void rv_jtag_tms_put(int tms);
-
-int rv_jtag_tms_get();
-
-void rv_jtag_tdi_put(int tdi);
-
-int rv_jtag_tdo_get();
 
 #ifdef __cplusplus
 }
