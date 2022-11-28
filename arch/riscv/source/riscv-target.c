@@ -76,31 +76,31 @@ static void rv_set_error(const char *str)
 static void rv_dtm_sync(uint32_t reg)
 {
     static uint32_t last_reg;
-    uint32_t temp_in[2];
-    uint32_t temp_out[2];
+    uint64_t temp_in;
+    uint64_t temp_out;
 
     if (reg != last_reg) {
-        temp_in[0] = reg;
-        rv_tap_shift_ir(temp_out, temp_in, 5, rv_target_ir_post, rv_target_ir_pre);
+        last_reg = reg;
+        temp_in = reg;
+        rv_tap_shift_scan(temp_in, 1, 5, rv_target_ir_post, rv_target_ir_pre);
     }
-    last_reg = reg;
 
-    temp_in[0] = target.dmi.data;
     switch (reg) {
         case RV_DTM_JTAG_REG_IDCODE:
-            rv_tap_shift_dr(temp_out, temp_in, 32, rv_target_dr_post, rv_target_dr_pre);
-            target.dtm.idcode.value = temp_out[0];
+            temp_in = target.dmi.data;
+            temp_out = rv_tap_shift_scan(temp_in, 0, 32, rv_target_dr_post, rv_target_dr_pre);
+            target.dtm.idcode.value = (rv_dtm_reg_t)temp_out;
             break;
         case RV_DTM_JTAG_REG_DTMCS:
-            rv_tap_shift_dr(temp_out, temp_in, 32, rv_target_dr_post, rv_target_dr_pre);
-            target.dtm.dtmcs.value = temp_out[0];
+            temp_in = target.dmi.data;
+            temp_out = rv_tap_shift_scan(temp_in, 0, 32, rv_target_dr_post, rv_target_dr_pre);
+            target.dtm.dtmcs.value = (rv_dtm_reg_t)temp_out;
             break;
         case RV_DTM_JTAG_REG_DMI:
-            temp_in[0] = (target.dmi.data << 2) | (target.dmi.op & 0x3);
-            temp_in[1] = (target.dmi.data >> 30) | (target.dmi.address << 2);
-            rv_tap_shift_dr(temp_out, temp_in, 32 + 2 + target.dtm.dtmcs.abits, rv_target_dr_post, rv_target_dr_pre);
-            target.dmi.op = temp_out[0] & 0x3;
-            target.dmi.data = (temp_out[0] >> 2) | (temp_out[1] << 30);
+            temp_in = ((uint64_t)target.dmi.address << 34) | ((uint64_t)target.dmi.data << 2) | (target.dmi.op & 0x3);
+            temp_out = rv_tap_shift_scan(temp_in, 0, 32 + 2 + target.dtm.dtmcs.abits, rv_target_dr_post, rv_target_dr_pre);
+            target.dmi.op = (rv_dmi_reg_t)(temp_out & 0x3);
+            target.dmi.data = (rv_dmi_reg_t)(temp_out >> 2);
             break;
         default:
             break;
