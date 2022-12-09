@@ -50,7 +50,7 @@
 
 #define GDB_DATA_CACHE_SIZE                 (1024)
 #define GDB_PACKET_BUFF_SIZE                (1024 + 64)//PacketSize:0x440
-#define GDB_PACKET_BUFF_NUM                 (2)
+#define GDB_PACKET_BUFF_NUM                 (1)
 
 void rv_transport_init(void);
 

@@ -167,9 +167,7 @@ void rv_tap_oscan1_mode(uint32_t dr_post, uint32_t dr_pre, uint32_t ir_post, uin
     }
 
     // check packet
-    oscan1_mode = false;
     rv_tap_idle(4);
-    oscan1_mode = true;
 
     // 1 IR ZBS
     rv_tap_shift_scan(tdi, 1, 0, ir_post, ir_pre);

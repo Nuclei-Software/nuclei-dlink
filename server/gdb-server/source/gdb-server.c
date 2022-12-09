@@ -61,6 +61,7 @@ void gdb_server_cmd_k(void);
 void gdb_server_cmd_c(void);
 void gdb_server_cmd_m(void);
 void gdb_server_cmd_M(void);
+void gdb_server_cmd_x(void);
 void gdb_server_cmd_X(void);
 void gdb_server_cmd_p(void);
 void gdb_server_cmd_P(void);
@@ -80,11 +81,12 @@ static void gdb_server_reply_ok(void);
 static void gdb_server_reply_err(int err);
 
 static void bin_to_hex(const uint8_t *bin, char *hex, uint32_t nbyte);
+static void hex_to_bin(const char *hex, uint8_t *bin, uint32_t nbyte);
 static void uint32_to_hex_le(uint32_t data, char *hex);
 static void uint64_to_hex_le(uint64_t data, char *hex);
-static void hex_to_bin(const char *hex, uint8_t *bin, uint32_t nbyte);
 static void hex_to_uint32_le(const char *hex, uint32_t *data);
 static void hex_to_uint64_le(const char *hex, uint64_t *data);
+static uint32_t bin_encode(uint8_t* xbin, uint8_t* bin, uint32_t bin_len);
 static uint32_t bin_decode(const uint8_t* xbin, uint8_t* bin, uint32_t xbin_len);
 
 void gdb_server_init(void)
@@ -160,6 +162,8 @@ void gdb_server_poll(void)
                     gdb_server_cmd_m();
                 } else if (c == 'M') {
                     gdb_server_cmd_M();
+                } else if (c == 'x') {
+                    gdb_server_cmd_x();
                 } else if (c == 'X') {
                     gdb_server_cmd_X();
                 } else if (c == 'p') {
@@ -363,6 +367,29 @@ void gdb_server_cmd_M(void)
     rv_target_write_memory(gdb_server_i.mem_buffer, gdb_server_i.mem_addr, gdb_server_i.mem_len);
 
     gdb_server_reply_ok();
+}
+
+/*
+ * ‘x addr,length’
+ * Read length addressable memory units starting at address addr.
+ * Note that addr may not be aligned to any particular boundary.
+ */
+void gdb_server_cmd_x(void)
+{
+    char *p;
+
+    p = strchr(&cmd.data[1], ',');
+    p++;
+    sscanf(&cmd.data[1], "%x", (unsigned int*)(&gdb_server_i.mem_addr));
+    sscanf(p, "%x", (unsigned int*)(&gdb_server_i.mem_len));
+    if (gdb_server_i.mem_len > sizeof(gdb_server_i.mem_buffer)) {
+        gdb_server_i.mem_len = sizeof(gdb_server_i.mem_buffer);
+    }
+
+    rv_target_read_memory(gdb_server_i.mem_buffer, gdb_server_i.mem_addr, gdb_server_i.mem_len);
+
+    rsp.len = bin_encode(rsp.data, gdb_server_i.mem_buffer, gdb_server_i.mem_len);;
+    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 
 /*
@@ -794,6 +821,26 @@ static void hex_to_uint64_le(const char *hex, uint64_t *data)
             ((uint64_t)bytes[5] << 40) |
             ((uint64_t)bytes[6] << 48) |
             ((uint64_t)bytes[7] << 56);
+}
+
+static uint32_t bin_encode(uint8_t* xbin, uint8_t* bin, uint32_t bin_len)
+{
+    uint32_t xbin_len = 0;
+    uint32_t i;
+
+    for(i = 0; i < bin_len; i++) {
+        if ((bin[i] == '#') || (bin[i] == '$') || (bin[i] == '}') || (bin[i] == '*')) {
+            xbin[xbin_len++] = 0x7d;
+            xbin[xbin_len++] = bin[i] ^ 0x20;
+        } else {
+            xbin[xbin_len++] = bin[i];
+        }
+        if (xbin_len >= bin_len) {
+            break;
+        }
+    }
+
+    return xbin_len;
 }
 
 static uint32_t bin_decode(const uint8_t* xbin, uint8_t* bin, uint32_t xbin_len)
