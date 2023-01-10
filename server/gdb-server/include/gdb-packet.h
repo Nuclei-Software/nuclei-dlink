@@ -25,16 +25,19 @@
 #endif
 
 #include "port.h"
+#include "usbd_conf.h"
 
 typedef struct {
     uint32_t len;
-    char data[GDB_PACKET_BUFF_SIZE];
+    uint8_t* data;
 } gdb_packet_t;
 
 extern QueueHandle_t gdb_cmd_packet_xQueue;
 extern QueueHandle_t gdb_rsp_packet_xQueue;
-extern QueueHandle_t gdb_rxdata_xQueue;
-extern QueueHandle_t gdb_txdata_xQueue;
+extern SemaphoreHandle_t usb_send_xSemaphore;
+extern SemaphoreHandle_t usb_receive_xSemaphore;
+extern uint8_t cmd_buffer[GDB_PACKET_BUFF_SIZE + 64];
+extern uint8_t rsp_buffer[GDB_PACKET_BUFF_SIZE + 64];
 
 void gdb_packet_init(void);
 

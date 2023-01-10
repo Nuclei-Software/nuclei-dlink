@@ -21,8 +21,8 @@
 #include "riscv-target.h"
 #include "encoding.h"
 
-static gdb_packet_t cmd = {0};
-static gdb_packet_t rsp = {0};
+static gdb_packet_t cmd;
+static gdb_packet_t rsp;
 
 typedef int16_t gdb_server_tid_t;
 
@@ -79,6 +79,7 @@ void gdb_server_disconnected(void);
 static void gdb_server_target_run(bool run);
 static void gdb_server_reply_ok(void);
 static void gdb_server_reply_err(int err);
+static void gdb_server_send_response(void);
 
 static void bin_to_hex(const uint8_t *bin, char *hex, uint32_t nbyte);
 static void hex_to_bin(const char *hex, uint8_t *bin, uint32_t nbyte);
@@ -93,6 +94,8 @@ void gdb_server_init(void)
 {
     gdb_server_target_run(false);
     gdb_server_i.gdb_connected = false;
+    gdb_set_no_ack_mode(false);
+    rsp.data = &rsp_buffer[2];
 }
 
 void gdb_server_poll(void)
@@ -102,8 +105,6 @@ void gdb_server_poll(void)
     uint32_t ret, len;
 
     for (;;) {
-        rsp.len = 0;
-        memset(rsp.data, 0x00, GDB_PACKET_BUFF_SIZE);
         if (gdb_server_i.gdb_connected && gdb_server_i.target_running) {
             xReturned = xQueueReceive(gdb_cmd_packet_xQueue, &cmd, (100 / portTICK_PERIOD_MS));
             if (xReturned == pdPASS) {
@@ -112,7 +113,7 @@ void gdb_server_poll(void)
                     gdb_server_target_run(false);
                     strncpy(rsp.data, "T02", GDB_PACKET_BUFF_SIZE);
                     rsp.len = 3;
-                    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+                    gdb_server_send_response();
                 }
             }
 
@@ -139,7 +140,7 @@ void gdb_server_poll(void)
                         strncpy(rsp.data, "T05swbreak:;", GDB_PACKET_BUFF_SIZE);
                     }
                     rsp.len = strlen(rsp.data);
-                    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+                    gdb_server_send_response();
                 }
             }
         } else {
@@ -227,20 +228,10 @@ void gdb_server_cmd_qRcmd(void)
         rv_target_halt();
         rv_target_init_after_halted(&gdb_server_i.target_error);
         gdb_server_reply_ok();
-    } else if (strncmp((char*)gdb_server_i.mem_buffer, "show error", 10) == 0) {
-        rv_target_get_error(&err_str, &err_pc);
-        snprintf((char*)gdb_server_i.mem_buffer, GDB_PACKET_BUFF_SIZE,
-                "RV-LINK ERROR: %s, @0x%08x\r\n", err_str, (unsigned int)err_pc);
-        len = strlen((char*)gdb_server_i.mem_buffer);
-        rsp.data[0] = 'O';
-        bin_to_hex(gdb_server_i.mem_buffer, &rsp.data[1], len);
-        rsp.len = len * 2 + 1;
-        xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
-        gdb_server_reply_ok();
     } else {
         bin_to_hex((uint8_t*)unspported_monitor_command, rsp.data, sizeof(unspported_monitor_command) - 1);
         rsp.len = (sizeof(unspported_monitor_command) - 1) * 2;
-        xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+        gdb_server_send_response();
     }
 }
 
@@ -278,7 +269,7 @@ void gdb_server_cmd_g(void)
     } else if (MXL_RV64 == rv_target_mxl()) {
         rsp.len = MXL_RV64 * 8 * RV_TARGET_CONFIG_REG_NUM;
     }
-    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+    gdb_server_send_response();
 }
 
 /*
@@ -344,7 +335,7 @@ void gdb_server_cmd_m(void)
 
     bin_to_hex(gdb_server_i.mem_buffer, rsp.data, gdb_server_i.mem_len);
     rsp.len = gdb_server_i.mem_len * 2;
-    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+    gdb_server_send_response();
 }
 
 /*
@@ -389,7 +380,7 @@ void gdb_server_cmd_x(void)
     rv_target_read_memory(gdb_server_i.mem_buffer, gdb_server_i.mem_addr, gdb_server_i.mem_len);
 
     rsp.len = bin_encode(rsp.data, gdb_server_i.mem_buffer, gdb_server_i.mem_len);;
-    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+    gdb_server_send_response();
 }
 
 /*
@@ -454,7 +445,7 @@ void gdb_server_cmd_p(void)
             rsp.len = MXL_RV64 * 8;
         }
     }
-    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+    gdb_server_send_response();
 }
 
 /*
@@ -575,7 +566,7 @@ void gdb_server_cmd_custom_set(const char* data)
             strncpy(rsp.data, "-:set:protocol:cjtag:OK;", 24);
             rsp.len = 24;
         }
-        xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+        gdb_server_send_response();
         gdb_server_connected();
     }
 }
@@ -591,14 +582,14 @@ void gdb_server_cmd_custom_read(const char* data)
         uint32_t misa = rv_target_misa();
         sprintf(&rsp.data[rsp.len], "%08x;", misa);
         rsp.len += 9;
-        xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+        gdb_server_send_response();
     } else if (strncmp(p, "vlenb", strlen("vlenb")) == 0) {
         strncpy(rsp.data, "-:read:vlenb:", 13);
         rsp.len = 13;
         uint64_t vlenb = rv_target_vlenb();
         sprintf(&rsp.data[rsp.len], "%016x;", vlenb);
         rsp.len += 17;
-        xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+        gdb_server_send_response();
     }
 }
 
@@ -638,7 +629,7 @@ void gdb_server_cmd_custom_algorithm(const char* data)
 
     strncpy(rsp.data, "-:algorithm:OK;", 15);
     rsp.len = 15;
-    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+    gdb_server_send_response();
 }
 
 void gdb_server_connected(void)
@@ -646,6 +637,7 @@ void gdb_server_connected(void)
     gdb_server_i.target_error = rv_target_error_none;
     gdb_server_i.gdb_connected = true;
     gdb_server_target_run(false);
+    gdb_set_no_ack_mode(false);
     gdb_server_i.restore_reg_flag = false;
 
     rv_target_init();
@@ -703,13 +695,18 @@ static void gdb_server_reply_ok(void)
 {
     strncpy(rsp.data, "OK", GDB_PACKET_BUFF_SIZE);
     rsp.len = 2;
-    xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
+    gdb_server_send_response();
 }
 
 static void gdb_server_reply_err(int err)
 {
     snprintf(rsp.data, GDB_PACKET_BUFF_SIZE, "E%02x", err);
     rsp.len = strlen(rsp.data);
+    gdb_server_send_response();
+}
+
+static void gdb_server_send_response(void)
+{
     xQueueSend(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
 }
 

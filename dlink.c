@@ -25,6 +25,10 @@ TaskHandle_t gdb_server_xHandle = NULL;
 
 void gdb_server_vTask(void* pvParameters)
 {
+    gdb_packet_init();
+    gdb_server_init();
+    rv_transport_init();
+
     for (;;) {
         gdb_server_poll();
     }
@@ -34,15 +38,11 @@ int main(void)
 {
     BaseType_t xReturned;
 
-    gdb_packet_init();
-    gdb_server_init();
-    rv_transport_init();
-
     xReturned = xTaskCreate(gdb_server_vTask,       /* Function that implements the task. */
                             "gdb_server",           /* Text name for the task. */
                             512,                    /* Stack size in words, not bytes. */
                             NULL,                   /* Parameter passed into the task. */
-                            2,                      /* Priority at which the task is created. */
+                            3,                      /* Priority at which the task is created. */
                             &gdb_server_xHandle);  /* Used to pass out the created task's handle. */
     if(xReturned != pdPASS) {
         /* error msg */
