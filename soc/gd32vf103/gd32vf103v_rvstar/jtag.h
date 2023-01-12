@@ -51,10 +51,11 @@
 if (tck) { GPIO_BOP(RV_LINK_TCK_PORT) = RV_LINK_TCK_PIN; } \
     else { GPIO_BC(RV_LINK_TCK_PORT) = RV_LINK_TCK_PIN; }
 
-#define RV_JTAG_TMS_MODE(out) \
+#define RV_JTAG_TMS_MODE(out, tms) \
 if (out) { GPIO_CTL1(RV_LINK_TMS_PORT) = 0x33800000; } \
     else { GPIO_CTL1(RV_LINK_TMS_PORT) = 0x83800000; \
-    GPIO_BC(RV_LINK_TMS_PORT) = RV_LINK_TMS_PIN; }
+    if (tms) { GPIO_BOP(RV_LINK_TMS_PORT) = RV_LINK_TMS_PIN; } \
+    else { GPIO_BC(RV_LINK_TMS_PORT) = RV_LINK_TMS_PIN; } }
 
 #define RV_JTAG_TMS_PUT(tms) \
 if (tms) { GPIO_BOP(RV_LINK_TMS_PORT) = RV_LINK_TMS_PIN; } \

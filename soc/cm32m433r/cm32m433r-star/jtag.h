@@ -62,10 +62,11 @@
 if (tck) { GPIO_PBSC(RV_LINK_TCK_BASE) = RV_LINK_TCK_PIN; } \
     else { GPIO_PBC(RV_LINK_TCK_BASE) = RV_LINK_TCK_PIN; }
 
-#define RV_JTAG_TMS_MODE(out) \
+#define RV_JTAG_TMS_MODE(out, tms) \
 if (out) { GPIO_PH_CFG(RV_LINK_TMS_BASE) = 0x43330000; } \
     else { GPIO_PH_CFG(RV_LINK_TMS_BASE) = 0x43830000; \
-    GPIO_PBC(RV_LINK_TMS_BASE) = RV_LINK_TMS_PIN; }
+    if (tms) { GPIO_PBSC(RV_LINK_TMS_BASE) = RV_LINK_TMS_PIN; } \
+    else { GPIO_PBC(RV_LINK_TMS_BASE) = RV_LINK_TMS_PIN; }}
 
 #define RV_JTAG_TMS_PUT(tms) \
 if (tms) { GPIO_PBSC(RV_LINK_TMS_BASE) = RV_LINK_TMS_PIN; } \

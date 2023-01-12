@@ -48,11 +48,11 @@ static inline uint64_t rv_tap_tick(uint32_t tms, uint32_t tdi)
         RV_JTAG_TMS_PUT(tms);
         RV_JTAG_TCK_PUT(1);
         RV_JTAG_TCK_PUT(0);
-        RV_JTAG_TMS_MODE(0);
+        RV_JTAG_TMS_MODE(0, tms);
         tdo = RV_JTAG_TMS_GET;
         RV_JTAG_TCK_PUT(1);
         RV_JTAG_TCK_PUT(0);
-        RV_JTAG_TMS_MODE(1);
+        RV_JTAG_TMS_MODE(1, tms);
     } else {
         /*
         *     ___
