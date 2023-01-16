@@ -42,6 +42,8 @@ static uint32_t cdc_cmd = 0xFFU;
 
 uint8_t usb_cmd_buffer[CDC_ACM_CMD_PACKET_SIZE];
 
+__IO uint8_t packet_sent = 1U;
+__IO uint8_t packet_receive = 1U;
 __IO uint32_t  receive_length = 0U;
 
 //usbd_int_cb_struct *usbd_int_fops = NULL;
@@ -297,7 +299,7 @@ uint8_t  cdc_acm_data_out_handler (usb_dev *pudev, uint8_t ep_id)
     }
     else if ((CDC_ACM_DATA_OUT_EP & 0x7F) == ep_id)
     {
-        xSemaphoreGiveFromISR(usb_receive_xSemaphore, &xHigherPriorityTaskWoken);
+        packet_receive = 1;
         receive_length = usbd_rxcount_get(pudev, CDC_ACM_DATA_OUT_EP);
         return USBD_OK;
     }
@@ -313,7 +315,7 @@ uint8_t  cdc_acm_data_in_handler (usb_dev *pudev, uint8_t ep_id)
         if ((transc->xfer_len % transc->max_len == 0) && (transc->xfer_len != 0)) {
             usbd_ep_send (pudev, ep_id, NULL, 0U);
         } else {
-            xSemaphoreGiveFromISR(usb_send_xSemaphore, &xHigherPriorityTaskWoken);
+            packet_sent = 1;
         }
         return USBD_OK;
     }

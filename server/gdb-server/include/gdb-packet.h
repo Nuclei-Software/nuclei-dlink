@@ -34,8 +34,6 @@ typedef struct {
 
 extern QueueHandle_t gdb_cmd_packet_xQueue;
 extern QueueHandle_t gdb_rsp_packet_xQueue;
-extern SemaphoreHandle_t usb_send_xSemaphore;
-extern SemaphoreHandle_t usb_receive_xSemaphore;
 extern uint8_t cmd_buffer[GDB_PACKET_BUFF_SIZE + 64];
 extern uint8_t rsp_buffer[GDB_PACKET_BUFF_SIZE + 64];
 
