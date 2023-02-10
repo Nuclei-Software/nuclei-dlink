@@ -20,6 +20,7 @@
 #include "gdb-packet.h"
 #include "riscv-target.h"
 #include "encoding.h"
+#include "flash.h"
 
 static gdb_packet_t cmd;
 static gdb_packet_t rsp;
@@ -68,6 +69,7 @@ void gdb_server_cmd_P(void);
 void gdb_server_cmd_s(void);
 void gdb_server_cmd_z(void);
 void gdb_server_cmd_Z(void);
+void gdb_server_cmd_v(void);
 void gdb_server_cmd_custom(void);
 void gdb_server_cmd_custom_set(const char* data);
 void gdb_server_cmd_custom_read(const char* data);
@@ -177,6 +179,8 @@ void gdb_server_poll(void)
                     gdb_server_cmd_z();
                 } else if (c == 'Z') {
                     gdb_server_cmd_Z();
+                } else if (c == 'v') {
+                    gdb_server_cmd_v();
                 } else if (c == '+') {
                     gdb_server_cmd_custom();
                 }
@@ -529,6 +533,35 @@ void gdb_server_cmd_Z(void)
     } else {
         gdb_server_reply_err(gdb_server_i.breakpoint_err);
     }
+}
+
+/*
+ * ‘v’
+ * Packets starting with ‘v’ are identified by a multi-letter name.
+ */
+void gdb_server_cmd_v(void)
+{
+    const char *p;
+    static uint32_t spi_base_addr;
+    static uint32_t flash_block_size;
+    uint32_t parameter[2];
+    if (strncmp(cmd.data, "vFlashInit:", 11) == 0) {
+        sscanf(cmd.data, "vFlashInit:%x,%x;", &spi_base_addr, &flash_block_size);
+        flash_init(spi_base_addr);
+    } else if (strncmp(cmd.data, "vFlashErase:", 12) == 0) {
+        sscanf(cmd.data, "vFlashErase:%x,%x;", &parameter[0], &parameter[1]);
+        flash_erase(spi_base_addr, parameter[0], parameter[0] + parameter[1]);
+    } else if (strncmp(cmd.data, "vFlashWrite:", 12) == 0) {
+        sscanf(cmd.data, "vFlashWrite:%x:", &parameter[0]);
+        p = strchr(&cmd.data[12], ':');
+        p++;
+        parameter[1] = cmd.len - ((uint32_t)p - (uint32_t)cmd.data);
+        gdb_server_i.mem_len = bin_decode((uint8_t*)p, gdb_server_i.mem_buffer, parameter[1]);
+
+        flash_write(spi_base_addr, gdb_server_i.mem_buffer, parameter[0], gdb_server_i.mem_len);
+    } else if (strncmp(cmd.data, "vFlashDone", 10) == 0) {
+    }
+    gdb_server_reply_ok();
 }
 
 /*

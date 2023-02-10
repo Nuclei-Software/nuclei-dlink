@@ -8,13 +8,13 @@ COMMON_FLAGS += -DUSE_USB_FS
 
 SRCDIRS = . \
         arch/riscv/source \
-        helper/source \
+        flash/source \
         server/gdb-server/source \
         soc/gd32vf103/gd32vf103v_rvstar
 
 INCDIRS = . \
         arch/riscv/include \
-        helper/include \
+        flash/include \
         server/gdb-server/include \
         soc \
         soc/gd32vf103/gd32vf103v_rvstar
