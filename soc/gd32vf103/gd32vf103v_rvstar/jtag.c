@@ -21,7 +21,6 @@
 
 void rv_jtag_init(void)
 {
-    rcu_periph_clock_enable(RCU_GPIOA);
     rcu_periph_clock_enable(RCU_GPIOB);
     rcu_periph_clock_enable(RCU_AF);
 
