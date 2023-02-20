@@ -592,7 +592,7 @@ void gdb_server_cmd_custom_set(const char* data)
         p = strchr(p, ':') + 1;
         if (strncmp(p, "jtag", strlen("jtag")) == 0) {
             rv_target_set_protocol(TARGET_PROTOCOL_JTAG);
-            strncpy(rsp.data, "-:set:protocol:jtag:OK;", 24);
+            strncpy(rsp.data, "-:set:protocol:jtag:OK;", 23);
             rsp.len = 23;
         } else if (strncmp(p, "cjtag", strlen("cjtag")) == 0) {
             rv_target_set_protocol(TARGET_PROTOCOL_CJTAG);

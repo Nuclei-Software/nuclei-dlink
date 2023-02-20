@@ -87,7 +87,7 @@ void gdb_rsp_packet_vTask(void* pvParameters)
 
     for (;;) {
         xQueueReceive(gdb_rsp_packet_xQueue, &rsp, portMAX_DELAY);
-        checksum = gdb_packet_checksum((const uint8_t*)&rsp.data, rsp.len);
+        checksum = gdb_packet_checksum((const uint8_t*)rsp.data, rsp.len);
         snprintf(&rsp.data[rsp.len], 5, "#%02x|", checksum);
         if (no_ack_mode) {
             rsp.data -= 1;

@@ -47,9 +47,28 @@ Dlink is developed based on RV-Link, and many new functions are added on its bas
 |     |        | GPIOB_Pin13 | TDO   |
 |     |        | GND         | GND   |
 
+# Dlink v1.0.0 Hardware Connection
+
+![Dlink v1.0.0 Connect](img/Dlink-v1.0.0-connect.png)
+
+| PC  | Dlink  | Dlink       | Board |
+| --- | ------ | ----------- | ----- |
+| USB | Type-C | 10pin cable | cable |
+
 # How to use dlink
 
 ## Clone Repository
+
+```bash
+# clone nuclei-sdk
+git clone https://github.com/Nuclei-Software/nuclei-sdk
+# clone dlink
+git clone https://github.com/Nuclei-Software/nuclei-dlink
+# clone dlink-gdb-server
+git clone https://github.com/Nuclei-Software/nuclei-dlink_gdbserver
+# clone flashloader
+git clone https://github.com/riscv-mcu/openflashloader
+```
 
 ## Run steps
 
@@ -109,3 +128,15 @@ make SOC=demosoc CORE=ux900 run_gdb
 ![Gdb Connect Gdbserver](img/gdb_connect_gdbserver.png)
 
 ![Gdb Connect Gdbserver Command Line](img/gdb_connect_gdbserver_command_line.png)
+
+## Dlink Configuration File
+
+- gdb server tcp/ip port
+- dlink port and baud
+- debug interface
+- spi and xip
+- flashloader
+
+![](img/dlink-configuration-file.png)
+
+> Note: If there is no available ram in the SOC for workarea or you do not want to use flashloader, you can mask flashloader related configurations in the configuration file
