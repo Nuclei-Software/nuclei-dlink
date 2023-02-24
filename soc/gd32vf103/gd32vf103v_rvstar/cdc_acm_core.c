@@ -56,6 +56,9 @@ const usb_desc_dev device_descriptor =
          .bDescriptorType = USB_DESCTYPE_DEV
      },
     .bcdUSB = 0x0200,
+    // .bDeviceClass = 0xEF,
+    // .bDeviceSubClass = 0x02,
+    // .bDeviceProtocol = 0x01,
     .bDeviceClass = 0x02,
     .bDeviceSubClass = 0x00,
     .bDeviceProtocol = 0x00,
@@ -79,7 +82,8 @@ usb_descriptor_configuration_set_struct configuration_descriptor =
             .bLength = USB_CFG_DESC_LEN,
             .bDescriptorType = USB_DESCTYPE_CONFIG
          },
-        .wTotalLength = USB_CDC_ACM_CONFIG_DESC_SIZE,
+        .wTotalLength = sizeof(usb_descriptor_configuration_set_struct),
+        // .bNumInterfaces = 0x04,
         .bNumInterfaces = 0x02,
         .bConfigurationValue = 0x01,
         .iConfiguration = 0x00,
@@ -87,7 +91,22 @@ usb_descriptor_configuration_set_struct configuration_descriptor =
         .bMaxPower = 0x32
     },
 
-    .cdc_loopback_interface =
+    .cdc[0].cdc_itf_association =
+    {
+        .header =
+         {
+             .bLength = USB_ITF_ASSOCIATION_DESC_LEN,
+             .bDescriptorType = USB_DESCTYPE_ITF_ASSOCIATION
+         },
+         .bFirstInterface = 0x00,
+         .bInterfaceCount = 0x02,
+         .bFunctoinClass = 0x02,
+         .bFunctionSubClass = 0x02,
+         .bFunctionProtocol = 0x00,
+         .iFunction = 0x00
+    },
+
+    .cdc[0].cdc_loopback_interface =
     {
         .header =
          {
@@ -99,11 +118,11 @@ usb_descriptor_configuration_set_struct configuration_descriptor =
         .bNumEndpoints = 0x01,
         .bInterfaceClass = 0x02,
         .bInterfaceSubClass = 0x02,
-        .bInterfaceProtocol = 0x01,
-        .iInterface = 0x00
+        .bInterfaceProtocol = 0x00,
+        .iInterface = 0x04
     },
 
-    .cdc_loopback_header =
+    .cdc[0].cdc_loopback_header =
     {
         .header =
          {
@@ -114,7 +133,7 @@ usb_descriptor_configuration_set_struct configuration_descriptor =
         .bcdCDC = 0x0110
     },
 
-    .cdc_loopback_call_managment =
+    .cdc[0].cdc_loopback_call_managment =
     {
         .header =
          {
@@ -126,7 +145,7 @@ usb_descriptor_configuration_set_struct configuration_descriptor =
         .bDataInterface = 0x01
     },
 
-    .cdc_loopback_acm =
+    .cdc[0].cdc_loopback_acm =
     {
         .header =
          {
@@ -137,7 +156,7 @@ usb_descriptor_configuration_set_struct configuration_descriptor =
         .bmCapabilities = 0x02,
     },
 
-    .cdc_loopback_union =
+    .cdc[0].cdc_loopback_union =
     {
         .header =
          {
@@ -149,7 +168,7 @@ usb_descriptor_configuration_set_struct configuration_descriptor =
         .bSlaveInterface0 = 0x01,
     },
 
-    .cdc_loopback_cmd_endpoint =
+    .cdc[0].cdc_loopback_cmd_endpoint =
     {
         .header =
          {
@@ -162,7 +181,7 @@ usb_descriptor_configuration_set_struct configuration_descriptor =
         .bInterval = 0x0A
     },
 
-    .cdc_loopback_data_interface =
+    .cdc[0].cdc_loopback_data_interface =
     {
         .header =
          {
@@ -178,7 +197,7 @@ usb_descriptor_configuration_set_struct configuration_descriptor =
         .iInterface = 0x00
     },
 
-    .cdc_loopback_out_endpoint =
+    .cdc[0].cdc_loopback_out_endpoint =
     {
         .header =
          {
@@ -191,7 +210,7 @@ usb_descriptor_configuration_set_struct configuration_descriptor =
         .bInterval = 0x00
     },
 
-    .cdc_loopback_in_endpoint =
+    .cdc[0].cdc_loopback_in_endpoint =
     {
         .header =
          {
@@ -202,7 +221,139 @@ usb_descriptor_configuration_set_struct configuration_descriptor =
         .bmAttributes = 0x02,
         .wMaxPacketSize = CDC_ACM_DATA_PACKET_SIZE,
         .bInterval = 0x00
-    }
+    },
+
+    .cdc[1].cdc_itf_association =
+    {
+        .header =
+         {
+             .bLength = USB_ITF_ASSOCIATION_DESC_LEN,
+             .bDescriptorType = USB_DESCTYPE_ITF_ASSOCIATION
+         },
+         .bFirstInterface = 0x02,
+         .bInterfaceCount = 0x02,
+         .bFunctoinClass = 0x02,
+         .bFunctionSubClass = 0x02,
+         .bFunctionProtocol = 0x00,
+         .iFunction = 0x00
+    },
+
+    .cdc[1].cdc_loopback_interface =
+    {
+        .header =
+         {
+             .bLength = USB_ITF_DESC_LEN,
+             .bDescriptorType = USB_DESCTYPE_ITF
+         },
+        .bInterfaceNumber = 0x02,
+        .bAlternateSetting = 0x00,
+        .bNumEndpoints = 0x01,
+        .bInterfaceClass = 0x02,
+        .bInterfaceSubClass = 0x02,
+        .bInterfaceProtocol = 0x00,
+        .iInterface = 0x05
+    },
+
+    .cdc[1].cdc_loopback_header =
+    {
+        .header =
+         {
+            .bLength = sizeof(usb_descriptor_header_function_struct),
+            .bDescriptorType = USB_DESCTYPE_CS_INTERFACE
+         },
+        .bDescriptorSubtype = 0x00,
+        .bcdCDC = 0x0110
+    },
+
+    .cdc[1].cdc_loopback_call_managment =
+    {
+        .header =
+         {
+            .bLength = sizeof(usb_descriptor_call_managment_function_struct),
+            .bDescriptorType = USB_DESCTYPE_CS_INTERFACE
+         },
+        .bDescriptorSubtype = 0x01,
+        .bmCapabilities = 0x00,
+        .bDataInterface = 0x03
+    },
+
+    .cdc[1].cdc_loopback_acm =
+    {
+        .header =
+         {
+            .bLength = sizeof(usb_descriptor_acm_function_struct),
+            .bDescriptorType = USB_DESCTYPE_CS_INTERFACE
+         },
+        .bDescriptorSubtype = 0x02,
+        .bmCapabilities = 0x02,
+    },
+
+    .cdc[1].cdc_loopback_union =
+    {
+        .header =
+         {
+            .bLength = sizeof(usb_descriptor_union_function_struct),
+            .bDescriptorType = USB_DESCTYPE_CS_INTERFACE
+         },
+        .bDescriptorSubtype = 0x06,
+        .bMasterInterface = 0x02,
+        .bSlaveInterface0 = 0x03,
+    },
+
+    .cdc[1].cdc_loopback_cmd_endpoint =
+    {
+        .header =
+         {
+            .bLength = USB_EP_DESC_LEN,
+            .bDescriptorType = USB_DESCTYPE_EP
+         },
+        .bEndpointAddress = CDC1_ACM_CMD_EP,
+        .bmAttributes = 0x03,
+        .wMaxPacketSize = CDC_ACM_CMD_PACKET_SIZE,
+        .bInterval = 0x0A
+    },
+
+    .cdc[1].cdc_loopback_data_interface =
+    {
+        .header =
+         {
+            .bLength = USB_ITF_DESC_LEN,
+            .bDescriptorType = USB_DESCTYPE_ITF
+         },
+        .bInterfaceNumber = 0x03,
+        .bAlternateSetting = 0x00,
+        .bNumEndpoints = 0x02,
+        .bInterfaceClass = 0x0A,
+        .bInterfaceSubClass = 0x00,
+        .bInterfaceProtocol = 0x00,
+        .iInterface = 0x00
+    },
+
+    .cdc[1].cdc_loopback_out_endpoint =
+    {
+        .header =
+         {
+             .bLength = USB_EP_DESC_LEN,
+             .bDescriptorType = USB_DESCTYPE_EP
+         },
+        .bEndpointAddress = CDC1_ACM_DATA_OUT_EP,
+        .bmAttributes = 0x02,
+        .wMaxPacketSize = CDC_ACM_DATA_PACKET_SIZE,
+        .bInterval = 0x00
+    },
+
+    .cdc[1].cdc_loopback_in_endpoint =
+    {
+        .header =
+         {
+             .bLength = USB_EP_DESC_LEN,
+             .bDescriptorType = USB_DESCTYPE_EP
+         },
+        .bEndpointAddress = CDC1_ACM_DATA_IN_EP,
+        .bmAttributes = 0x02,
+        .wMaxPacketSize = CDC_ACM_DATA_PACKET_SIZE,
+        .bInterval = 0x00
+    },
 };
 
 /* USB language ID Descriptor */
@@ -216,12 +367,14 @@ const usb_desc_LANGID usbd_language_id_desc =
     .wLANGID = ENG_LANGID
 };
 
-void* const usbd_strings[] =
+void* const usbd_strings[STR_IDX_MAX] =
 {
-    [STR_IDX_LANGID] = (uint8_t *)&usbd_language_id_desc,
-    [STR_IDX_MFC] = USBD_STRING_DESC("GigaDevice"),
-    [STR_IDX_PRODUCT] = USBD_STRING_DESC("GD32 USB CDC ACM in FS Mode"),
-    [STR_IDX_SERIAL] = USBD_STRING_DESC("GD32XXX-3.0.0-7z8x9yer")
+    [STR_IDX_LANGID]    = (uint8_t *)&usbd_language_id_desc,
+    [STR_IDX_MFC]       = USBD_STRING_DESC("Dlink"),
+    [STR_IDX_PRODUCT]   = USBD_STRING_DESC("Low Cost Debugging Scheme"),
+    [STR_IDX_SERIAL]    = USBD_STRING_DESC("Dlink Unique-ID"),
+    [STR_IDX_CONFIG]    = USBD_STRING_DESC("Dlink GDB Server"),
+    [STR_IDX_ITF]       = USBD_STRING_DESC("Dlink COM Port"),
 };
 
 /*!
@@ -234,11 +387,10 @@ void* const usbd_strings[] =
 uint8_t cdc_acm_init (usb_dev *pudev, uint8_t config_index)
 {
     /* initialize the data Tx/Rx endpoint */
-    usbd_ep_setup(pudev, &(configuration_descriptor.cdc_loopback_in_endpoint));
-    usbd_ep_setup(pudev, &(configuration_descriptor.cdc_loopback_out_endpoint));
-
-    /* initialize the command Tx endpoint */
-    usbd_ep_setup(pudev, &(configuration_descriptor.cdc_loopback_cmd_endpoint));
+    usbd_ep_setup(pudev, &(configuration_descriptor.cdc[0].cdc_loopback_in_endpoint));
+    usbd_ep_setup(pudev, &(configuration_descriptor.cdc[0].cdc_loopback_out_endpoint));
+    usbd_ep_setup(pudev, &(configuration_descriptor.cdc[1].cdc_loopback_in_endpoint));
+    usbd_ep_setup(pudev, &(configuration_descriptor.cdc[1].cdc_loopback_out_endpoint));
 
     return USBD_OK;
 }
@@ -255,10 +407,8 @@ uint8_t cdc_acm_deinit (usb_dev *pudev, uint8_t config_index)
     /* deinitialize the data Tx/Rx endpoint */
     usbd_ep_clear(pudev, CDC_ACM_DATA_IN_EP);
     usbd_ep_clear(pudev, CDC_ACM_DATA_OUT_EP);
-
-    /* deinitialize the command Tx endpoint */
-    usbd_ep_clear(pudev, CDC_ACM_CMD_EP);
-
+    usbd_ep_clear(pudev, CDC1_ACM_DATA_IN_EP);
+    usbd_ep_clear(pudev, CDC1_ACM_DATA_OUT_EP);
     return USBD_OK;
 }
 

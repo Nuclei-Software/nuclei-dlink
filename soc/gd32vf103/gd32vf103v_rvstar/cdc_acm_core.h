@@ -76,19 +76,30 @@ typedef struct
 
 typedef struct
 {
-    usb_desc_config                config;
-    usb_desc_itf                   cdc_loopback_interface;
-    usb_descriptor_header_function_struct             cdc_loopback_header;
-    usb_descriptor_call_managment_function_struct     cdc_loopback_call_managment;
-    usb_descriptor_acm_function_struct                cdc_loopback_acm;
-    usb_descriptor_union_function_struct              cdc_loopback_union;
-    usb_desc_ep                    cdc_loopback_cmd_endpoint;
-    usb_desc_itf                   cdc_loopback_data_interface;
-    usb_desc_ep                    cdc_loopback_out_endpoint;
-    usb_desc_ep                    cdc_loopback_in_endpoint;
+    usb_desc_itf_association                            cdc_itf_association;
+    usb_desc_itf                                        cdc_loopback_interface;
+    usb_descriptor_header_function_struct               cdc_loopback_header;
+    usb_descriptor_call_managment_function_struct       cdc_loopback_call_managment;
+    usb_descriptor_acm_function_struct                  cdc_loopback_acm;
+    usb_descriptor_union_function_struct                cdc_loopback_union;
+    usb_desc_ep                                         cdc_loopback_cmd_endpoint;
+    usb_desc_itf                                        cdc_loopback_data_interface;
+    usb_desc_ep                                         cdc_loopback_out_endpoint;
+    usb_desc_ep                                         cdc_loopback_in_endpoint;
+} usb_descriptor_cdc_configuration_set_struct;
+
+typedef struct
+{
+    usb_desc_config                             config;
+    usb_descriptor_cdc_configuration_set_struct cdc[2];
 } usb_descriptor_configuration_set_struct;
 
-extern void* const usbd_strings[USB_STRING_COUNT];
+typedef struct {
+    usb_desc_header header;
+    wchar_t wString[16];
+} usb_descriptor_string;
+
+extern void* const usbd_strings[STR_IDX_MAX];
 extern const usb_desc_dev device_descriptor;
 extern usb_descriptor_configuration_set_struct configuration_descriptor;
 
