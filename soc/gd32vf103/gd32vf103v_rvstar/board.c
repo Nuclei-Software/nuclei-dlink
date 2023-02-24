@@ -3,10 +3,7 @@
  * Copyright (c) 2020, Micha Hoiting <micha.hoiting@gmail.com>
  * Copyright (c) 2022 Nuclei Limited. All rights reserved.
  *
- * \file  rv-link/main.c
- * \brief Main RV-Link application.
- *
- * RV-LINK is licensed under the Mulan PSL v1.
+ * Dlink is licensed under the Mulan PSL v1.
  * You can use this software according to the terms and conditions of the Mulan PSL v1.
  * You may obtain a copy of Mulan PSL v1 at:
  *     http://license.coscl.org.cn/MulanPSL
@@ -32,7 +29,7 @@ usb_core_driver USB_OTG_dev =
     }
 };
 
-void rv_transport_init(void)
+void rv_board_init(void)
 {
     usb_rcu_config();
 

@@ -3,10 +3,7 @@
  * Copyright (c) 2020, Micha Hoiting <micha.hoiting@gmail.com>
  * Copyright (c) 2022 Nuclei Limited. All rights reserved.
  *
- * \file  rv-link/main.c
- * \brief Main RV-Link application.
- *
- * RV-LINK is licensed under the Mulan PSL v1.
+ * Dlink is licensed under the Mulan PSL v1.
  * You can use this software according to the terms and conditions of the Mulan PSL v1.
  * You may obtain a copy of Mulan PSL v1 at:
  *     http://license.coscl.org.cn/MulanPSL
@@ -27,7 +24,7 @@ void gdb_server_vTask(void* pvParameters)
 {
     gdb_packet_init();
     gdb_server_init();
-    rv_transport_init();
+    rv_board_init();
 
     for (;;) {
         gdb_server_poll();
