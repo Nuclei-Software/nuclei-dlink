@@ -42,5 +42,4 @@ void rv_board_init(void)
     /* check if USB device is enumerated successfully */
     while (USBD_CONFIGURED != USB_OTG_dev.dev.cur_status) {}
     RV_LED_R(0);
-    RV_LED_G(1);
 }

@@ -32,13 +32,13 @@
 
 /* JTAG TMS pin definition */
 #define RV_LED_G_PORT                   GPIOA
-#define RV_LED_G_PIN                    GPIO_PIN_2 /* PA2, G */
-#define RV_LED_G_PIN_SOURCE             GPIO_PIN_SOURCE_2
+#define RV_LED_G_PIN                    GPIO_PIN_3 /* PA3, G */
+#define RV_LED_G_PIN_SOURCE             GPIO_PIN_SOURCE_3
 
 /* JTAG TDI pin definition */
 #define RV_LED_B_PORT                   GPIOA
-#define RV_LED_B_PIN                    GPIO_PIN_3 /* PA3, B */
-#define RV_LED_B_PIN_SOURCE             GPIO_PIN_SOURCE_3
+#define RV_LED_B_PIN                    GPIO_PIN_2 /* PA2, B */
+#define RV_LED_B_PIN_SOURCE             GPIO_PIN_SOURCE_2
 
 #define RV_LED_R(en) \
     if (en) { \
