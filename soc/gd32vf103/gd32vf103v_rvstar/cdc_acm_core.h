@@ -20,7 +20,7 @@
 #include "usbd_enum.h"
 #include "usb_ch9_std.h"
 #include "usbd_transc.h"
-
+#include "usb-serial.h"
 
 #define USB_DESCTYPE_CS_INTERFACE               0x24
 #define USB_CDC_ACM_CONFIG_DESC_SIZE            0x43
@@ -115,8 +115,8 @@ uint8_t cdc_acm_req_handler(usb_dev *pudev, usb_req *req);
 /* handle CDC ACM data */
 uint8_t cdc_acm_data_in_handler(usb_dev *pudev, uint8_t ep_id);
 uint8_t cdc_acm_data_out_handler(usb_dev *pudev, uint8_t ep_id);
-
+const void *cdc_acm_get_dev_strings_desc(void);
 /* command data received on control endpoint */
-uint8_t cdc_acm_EP0_RxReady(usb_dev  *pudev);
+uint8_t cdc_acm_ep0_data_out_handler(usb_dev  *pudev);
 
 #endif  /* CDC_ACM_CORE_H */

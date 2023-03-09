@@ -19,9 +19,10 @@
 #include "cdc_acm_core.h"
 #include "led.h"
 
-extern __IO uint8_t packet_sent;
-extern __IO uint8_t packet_receive;
-extern __IO uint32_t receive_length;
+extern __IO uint32_t cdc0_packet_sent;
+extern __IO uint32_t cdc0_packet_receive;
+extern __IO uint32_t cdc0_receive_length;
+
 extern usb_core_driver USB_OTG_dev;
 
 TaskHandle_t gdb_cmd_packet_xHandle = NULL;
@@ -52,11 +53,11 @@ void gdb_cmd_packet_vTask(void* pvParameters)
         while (1) {
             if (USBD_CONFIGURED == USB_OTG_dev.dev.cur_status) {
                 RV_LED_G(1);
-                packet_receive = 0;
-                usbd_ep_recev(&USB_OTG_dev, CDC_ACM_DATA_OUT_EP, temp, CDC_ACM_DATA_PACKET_SIZE);
-                while (!packet_receive);
+                cdc0_packet_receive = 0;
+                usbd_ep_recev(&USB_OTG_dev, CDC0_ACM_DATA_OUT_EP, temp, CDC_ACM_DATA_PACKET_SIZE);
+                while (!cdc0_packet_receive);
                 RV_LED_G(0);
-                for (int i = 0;i < receive_length;i++) {
+                for (int i = 0;i < cdc0_receive_length;i++) {
                     if (-1 == dollar && '$' == temp[i]) {
                         dollar = i + total;
                     }
@@ -65,9 +66,9 @@ void gdb_cmd_packet_vTask(void* pvParameters)
                     }
                 }
                 if (dollar >= 0) {
-                    memcpy(&cmd_buffer[total], temp, receive_length);
+                    memcpy(&cmd_buffer[total], temp, cdc0_receive_length);
                 }
-                total += receive_length;
+                total += cdc0_receive_length;
                 if (dollar >= 0 && sharp > 0) {
                     break;
                 }
@@ -102,17 +103,17 @@ void gdb_rsp_packet_vTask(void* pvParameters)
         do {
             if (USBD_CONFIGURED == USB_OTG_dev.dev.cur_status) {
                 RV_LED_G(0);
-                packet_sent = 0;
+                cdc0_packet_sent = 0;
                 if (rsp.len >= CDC_ACM_DATA_PACKET_SIZE) {
-                    usbd_ep_send(&USB_OTG_dev, CDC_ACM_DATA_IN_EP, rsp.data, CDC_ACM_DATA_PACKET_SIZE);
+                    usbd_ep_send(&USB_OTG_dev, CDC0_ACM_DATA_IN_EP, rsp.data, CDC_ACM_DATA_PACKET_SIZE);
                     rsp.data += CDC_ACM_DATA_PACKET_SIZE;
                     rsp.len -= CDC_ACM_DATA_PACKET_SIZE;
                 } else {
-                    usbd_ep_send(&USB_OTG_dev, CDC_ACM_DATA_IN_EP, rsp.data, rsp.len);
+                    usbd_ep_send(&USB_OTG_dev, CDC0_ACM_DATA_IN_EP, rsp.data, rsp.len);
                     rsp.data += rsp.len;
                     rsp.len -= rsp.len;
                 }
-                while (!packet_sent);
+                while (!cdc0_packet_sent);
                 RV_LED_G(1);
             }
         } while (rsp.len);

@@ -157,7 +157,7 @@ void rv_tap_oscan1_mode(uint32_t dr_post, uint32_t dr_pre, uint32_t ir_post, uin
     rv_tap_shift_scan(tdi, 0, 9, dr_post, dr_pre);//cp0 = 9
     rv_tap_shift_scan(tdi, 0, 0, dr_post, dr_pre);//cp1 = 0
     tdo = rv_tap_shift_scan(tdi, 0, 32, dr_post, dr_pre);//crscan = 32
-    if ((tdo & 0x3F) != 9) {
+    if ((tdo & 0xFF) != 9) {
         oscan1_mode = false;
         rv_tap_reset(50);
         return;

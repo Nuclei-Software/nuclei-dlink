@@ -19,19 +19,18 @@
 
 #include "usb_conf.h"
 
-#define USBD_CFG_MAX_NUM                    1
-#define USBD_ITF_MAX_NUM                    6
+#define USBD_CFG_MAX_NUM                   1
+#define USBD_ITF_MAX_NUM                   6
 
-#define USB_STR_DESC_MAX_SIZE               64
+#define USB_STR_DESC_MAX_SIZE              64
 
-#define USB_STRING_COUNT                    STR_IDX_MAX
+#define USB_STRING_COUNT                   STR_IDX_MAX
 
-/* endpoint count used by the CDC ACM device */
-#define CDC_ACM_CMD_EP                     0x84
+#define CDC0_ACM_CMD_EP                    0x84
+#define CDC0_ACM_DATA_IN_EP                EP1_IN
+#define CDC0_ACM_DATA_OUT_EP               EP1_OUT
+
 #define CDC1_ACM_CMD_EP                    0x85
-
-#define CDC_ACM_DATA_IN_EP                 EP1_IN
-#define CDC_ACM_DATA_OUT_EP                EP1_OUT
 #define CDC1_ACM_DATA_IN_EP                EP2_IN
 #define CDC1_ACM_DATA_OUT_EP               EP2_OUT
 

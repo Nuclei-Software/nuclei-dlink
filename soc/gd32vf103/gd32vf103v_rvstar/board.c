@@ -33,11 +33,13 @@ usb_core_driver USB_OTG_dev =
 void rv_board_init(void)
 {
     rv_led_init();
+    usb_serial_init();
 
     RV_LED_R(1);
     usb_rcu_config();
     usb_timer_init();
     usb_intr_config();
+    USB_OTG_dev.dev.desc.strings = cdc_acm_get_dev_strings_desc();
     usbd_init (&USB_OTG_dev, USB_CORE_ENUM_FS, &usbd_cdc_cb);
     /* check if USB device is enumerated successfully */
     while (USBD_CONFIGURED != USB_OTG_dev.dev.cur_status) {}
