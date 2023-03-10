@@ -33,7 +33,6 @@ usb_core_driver USB_OTG_dev =
 void rv_board_init(void)
 {
     rv_led_init();
-    usb_serial_init();
 
     RV_LED_R(1);
     usb_rcu_config();
@@ -44,4 +43,6 @@ void rv_board_init(void)
     /* check if USB device is enumerated successfully */
     while (USBD_CONFIGURED != USB_OTG_dev.dev.cur_status) {}
     RV_LED_R(0);
+
+    usb_serial_init();
 }

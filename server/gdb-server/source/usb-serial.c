@@ -28,12 +28,12 @@ QueueHandle_t usb_serial_tx_xQueue;
 
 void usb_serial_tx_vTask(void* pvParameters)
 {
-    uint8_t cache_buf[64];
+    uint8_t cache_buf[CDC_ACM_DATA_PACKET_SIZE];
     uint32_t cache_len = 0;
 
     while (1) {
         xQueueReceive(usb_serial_tx_xQueue, &cache_buf[cache_len++], portMAX_DELAY);
-        if ((cache_len == 64) || (cache_buf[cache_len - 1] == '\n')) {
+        if ((cache_len == CDC_ACM_DATA_PACKET_SIZE) || (cache_buf[cache_len - 1] == '\n')) {
             RV_LED_B(1);
             if (USBD_CONFIGURED == USB_OTG_dev.dev.cur_status) {
                 cdc1_packet_sent = 0;

@@ -32,8 +32,6 @@ __IO uint32_t cdc1_packet_sent = 1U;
 __IO uint32_t cdc1_packet_receive = 1U;
 __IO uint32_t cdc1_receive_length = 0U;
 
-//usbd_int_cb_struct *usbd_int_fops = NULL;
-
 typedef struct
 {
     uint32_t dwDTERate;   /* data terminal rate */

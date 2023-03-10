@@ -20,11 +20,7 @@
 #include "usb_conf.h"
 
 #define USBD_CFG_MAX_NUM                   1
-#define USBD_ITF_MAX_NUM                   6
-
-#define USB_STR_DESC_MAX_SIZE              64
-
-#define USB_STRING_COUNT                   STR_IDX_MAX
+#define USBD_ITF_MAX_NUM                   3
 
 #define CDC0_ACM_CMD_EP                    0x84
 #define CDC0_ACM_DATA_IN_EP                EP1_IN
