@@ -23,36 +23,21 @@ extern __IO uint32_t cdc1_packet_sent;
 
 extern usb_core_driver USB_OTG_dev;
 
-TaskHandle_t usb_serial_tx_xHandle = NULL;
-QueueHandle_t usb_serial_tx_xQueue;
-
-void usb_serial_tx_vTask(void* pvParameters)
-{
-    uint8_t cache_buf[CDC_ACM_DATA_PACKET_SIZE];
-    uint32_t cache_len = 0;
-
-    while (1) {
-        xQueueReceive(usb_serial_tx_xQueue, &cache_buf[cache_len++], portMAX_DELAY);
-        if ((cache_len == CDC_ACM_DATA_PACKET_SIZE) || (cache_buf[cache_len - 1] == '\n')) {
-            RV_LED_B(1);
-            if (USBD_CONFIGURED == USB_OTG_dev.dev.cur_status) {
-                cdc1_packet_sent = 0;
-                usbd_ep_send(&USB_OTG_dev, CDC1_ACM_DATA_IN_EP, cache_buf, cache_len);
-                while (!cdc1_packet_sent);
-                cache_len = 0;
-            }
-            RV_LED_B(0);
-        }
-    }
-}
-
 void USART0_IRQHandler(void)
 {
-    uint8_t c;
+    static uint8_t index = 0;
+    static uint8_t cache[CDC_ACM_DATA_PACKET_SIZE];
     if (usart_interrupt_flag_get(UART_ITF, USART_INT_FLAG_RBNE) != RESET) {
         /* read one byte from the receive data register */
-        c = (uint8_t)usart_data_receive(UART_ITF);
-        xQueueSendFromISR(usb_serial_tx_xQueue, &c, pdFALSE);
+        cache[index] = (uint8_t)usart_data_receive(UART_ITF);
+        index++;
+        if ((index >= CDC_ACM_DATA_PACKET_SIZE) || ('\n' == cache[index - 1])) {
+            RV_LED_B(1);
+            cdc1_packet_sent = 0;
+            usbd_ep_send(&USB_OTG_dev, CDC1_ACM_DATA_IN_EP, cache, index);
+            index = 0;
+            RV_LED_B(0);
+        }
     }
 }
 
@@ -83,20 +68,4 @@ void usb_serial_init(void)
     eclic_irq_enable(UART_IRQ, 1, ECLIC_PRIGROUP_LEVEL2_PRIO2);
     /* enable USART receive interrupt */
     usart_interrupt_enable(UART_ITF, USART_INT_RBNE);
-
-    usb_serial_tx_xQueue = xQueueCreate(256, sizeof(uint8_t));
-    if (usb_serial_tx_xQueue == NULL) {
-        /* Queue was not created and must not be used. */
-    }
-
-    xReturned = xTaskCreate(usb_serial_tx_vTask,      /* Function that implements the task. */
-                            "usb_serial_tx",          /* Text name for the task. */
-                            256,                      /* Stack size in words, not bytes. */
-                            NULL,                     /* Parameter passed into the task. */
-                            3,                        /* Priority at which the task is created. */
-                            &usb_serial_tx_xHandle);  /* Used to pass out the created task's handle. */
-    if(xReturned != pdPASS) {
-        /* error msg */
-        vTaskDelete(usb_serial_tx_xHandle);
-    }
 }
