@@ -24,7 +24,7 @@ void rv_led_init(void)
     gpio_init(RV_LED_G_PORT, GPIO_MODE_OUT_PP, GPIO_OSPEED_50MHZ, RV_LED_G_PIN);
     gpio_init(RV_LED_B_PORT, GPIO_MODE_OUT_PP, GPIO_OSPEED_50MHZ, RV_LED_B_PIN);
 
-    RV_LED_R(0);
+    RV_LED_R(1);
     RV_LED_G(0);
     RV_LED_B(0);
 }

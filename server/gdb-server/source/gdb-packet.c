@@ -52,10 +52,11 @@ void gdb_cmd_packet_vTask(void* pvParameters)
         total = 0;
         while (1) {
             if (USBD_CONFIGURED == USB_OTG_dev.dev.cur_status) {
-                RV_LED_G(1);
                 cdc0_packet_receive = 0;
                 usbd_ep_recev(&USB_OTG_dev, CDC0_ACM_DATA_OUT_EP, temp, CDC_ACM_DATA_PACKET_SIZE);
-                while (!cdc0_packet_receive);
+                while (!cdc0_packet_receive) {
+                    vTaskDelay(5 / portTICK_PERIOD_MS);
+                };
                 RV_LED_G(0);
                 for (int i = 0;i < cdc0_receive_length;i++) {
                     if (-1 == dollar && '$' == temp[i]) {
@@ -72,6 +73,7 @@ void gdb_cmd_packet_vTask(void* pvParameters)
                 if (dollar >= 0 && sharp > 0) {
                     break;
                 }
+                RV_LED_G(1);
             }
         }
         cmd.len = sharp - dollar - 1;
@@ -100,9 +102,9 @@ void gdb_rsp_packet_vTask(void* pvParameters)
             rsp.data[1] = '$';
             rsp.len += 6;
         }
+        RV_LED_G(0);
         do {
             if (USBD_CONFIGURED == USB_OTG_dev.dev.cur_status) {
-                RV_LED_G(0);
                 cdc0_packet_sent = 0;
                 if (rsp.len >= CDC_ACM_DATA_PACKET_SIZE) {
                     usbd_ep_send(&USB_OTG_dev, CDC0_ACM_DATA_IN_EP, rsp.data, CDC_ACM_DATA_PACKET_SIZE);
@@ -113,10 +115,12 @@ void gdb_rsp_packet_vTask(void* pvParameters)
                     rsp.data += rsp.len;
                     rsp.len -= rsp.len;
                 }
-                while (!cdc0_packet_sent);
-                RV_LED_G(1);
+                while (!cdc0_packet_sent) {
+                    vTaskDelay(5 / portTICK_PERIOD_MS);
+                };
             }
         } while (rsp.len);
+        RV_LED_G(1);
     }
 }
 

@@ -32,11 +32,9 @@ void USART0_IRQHandler(void)
         cache[index] = (uint8_t)usart_data_receive(UART_ITF);
         index++;
         if ((index >= CDC_ACM_DATA_PACKET_SIZE) || ('\n' == cache[index - 1])) {
-            RV_LED_B(1);
             cdc1_packet_sent = 0;
             usbd_ep_send(&USB_OTG_dev, CDC1_ACM_DATA_IN_EP, cache, index);
             index = 0;
-            RV_LED_B(0);
         }
     }
 }

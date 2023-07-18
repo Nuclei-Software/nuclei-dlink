@@ -18,6 +18,7 @@
 #include "riscv-target.h"
 #include "encoding.h"
 #include "flash.h"
+#include "led.h"
 
 static gdb_packet_t cmd;
 static gdb_packet_t rsp;
@@ -697,6 +698,9 @@ void gdb_server_connected(void)
             break;
         }
     }
+    RV_LED_R(0);
+    RV_LED_G(1);
+    RV_LED_B(0);
 }
 
 void gdb_server_disconnected(void)
@@ -714,6 +718,9 @@ void gdb_server_disconnected(void)
     rv_target_deinit();
 
     gdb_server_i.gdb_connected = false;
+    RV_LED_R(0);
+    RV_LED_G(0);
+    RV_LED_B(1);
 }
 
 static void gdb_server_target_run(bool run)
