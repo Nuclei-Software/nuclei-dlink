@@ -30,6 +30,7 @@ void rv_tap_idle(uint32_t len);
 uint64_t rv_tap_shift_scan(uint64_t in, uint32_t ir, uint32_t len, uint32_t post, uint32_t pre);
 void rv_tap_oscan1_mode(void);
 void rv_tap_oscan1_mode_short(void);
+void rv_tap_oscan1_mode_short_exit(void);
 
 #ifdef __cplusplus
 }

@@ -725,21 +725,26 @@ void rv_target_set_protocol(rv_target_protocol_t protocol)
 void rv_target_init_post(rv_target_error_t *err)
 {
     rv_tap_reset(32);
+    rv_tap_oscan1_mode_short_exit();
 
+    target.dtm.idcode.value = 0;
+    target.dmi.data = target.dtm.idcode.value;
     if (TARGET_PROTOCOL_CJTAG == target.protocol) {
         rv_tap_oscan1_mode();
-        target.dtm.idcode.value = 0;
-        target.dmi.data = target.dtm.idcode.value;
         rv_dtm_sync(RV_DTM_JTAG_REG_IDCODE);
         if (!target.dtm.idcode.reserved0) {
             rv_tap_oscan1_mode_short();
-            target.dtm.idcode.value = 0;
-            target.dmi.data = target.dtm.idcode.value;
             rv_dtm_sync(RV_DTM_JTAG_REG_IDCODE);
             if (!target.dtm.idcode.reserved0) {
                 *err = rv_target_error_line;
                 return;
             }
+        }
+    } else {
+        rv_dtm_sync(RV_DTM_JTAG_REG_IDCODE);
+        if (!target.dtm.idcode.reserved0) {
+            *err = rv_target_error_line;
+            return;
         }
     }
 

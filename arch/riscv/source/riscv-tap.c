@@ -219,3 +219,9 @@ void rv_tap_oscan1_mode_short(void)
     oscan1_mode = true;
     rv_tap_tick(0, 0);// TLR
 }
+
+void rv_tap_oscan1_mode_short_exit(void)
+{
+    rvl_tap_escape(10);
+    rv_tap_reset(50);
+}
