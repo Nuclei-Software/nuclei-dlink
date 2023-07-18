@@ -126,7 +126,7 @@ uint64_t rv_tap_shift_scan(uint64_t in, uint32_t ir, uint32_t len, uint32_t post
     return rv_tap_shift(in, len, post, pre);
 }
 
-void rv_tap_oscan1_mode(uint32_t dr_post, uint32_t dr_pre, uint32_t ir_post, uint32_t ir_pre)
+void rv_tap_oscan1_mode(void)
 {
     uint64_t tdi = 0xFFFFFFFF;
     uint64_t tdo;
@@ -137,15 +137,15 @@ void rv_tap_oscan1_mode(uint32_t dr_post, uint32_t dr_pre, uint32_t ir_post, uin
     rv_tap_reset(50);
 
     // 2 DR ZBS
-    rv_tap_shift_scan(tdi, 0, 0, dr_post, dr_pre);
-    rv_tap_shift_scan(tdi, 0, 0, dr_post, dr_pre);
+    rv_tap_shift_scan(tdi, 0, 0, 0, 0);
+    rv_tap_shift_scan(tdi, 0, 0, 0, 0);
 
     // enter command level 2
-    rv_tap_shift_scan(tdi, 0, 1, dr_post, dr_pre);
+    rv_tap_shift_scan(tdi, 0, 1, 0, 0);
 
     // set scan format to OScan1
-    rv_tap_shift_scan(tdi, 0, 3, dr_post, dr_pre);//cp0 = 3
-    rv_tap_shift_scan(tdi, 0, 9, dr_post, dr_pre);//cp1 = 9
+    rv_tap_shift_scan(tdi, 0, 3, 0, 0);//cp0 = 3
+    rv_tap_shift_scan(tdi, 0, 9, 0, 0);//cp1 = 9
 
     // check packet
     rv_tap_idle(4);
@@ -154,9 +154,9 @@ void rv_tap_oscan1_mode(uint32_t dr_post, uint32_t dr_pre, uint32_t ir_post, uin
     oscan1_mode = true;
 
     // read back0 register
-    rv_tap_shift_scan(tdi, 0, 9, dr_post, dr_pre);//cp0 = 9
-    rv_tap_shift_scan(tdi, 0, 0, dr_post, dr_pre);//cp1 = 0
-    tdo = rv_tap_shift_scan(tdi, 0, 32, dr_post, dr_pre);//crscan = 32
+    rv_tap_shift_scan(tdi, 0, 9, 0, 0);//cp0 = 9
+    rv_tap_shift_scan(tdi, 0, 0, 0, 0);//cp1 = 0
+    tdo = rv_tap_shift_scan(tdi, 0, 32, 0, 0);//crscan = 32
     if ((tdo & 0xFF) != 9) {
         oscan1_mode = false;
         rv_tap_reset(50);
@@ -167,5 +167,55 @@ void rv_tap_oscan1_mode(uint32_t dr_post, uint32_t dr_pre, uint32_t ir_post, uin
     rv_tap_idle(4);
 
     // 1 IR ZBS
-    rv_tap_shift_scan(tdi, 1, 0, ir_post, ir_pre);
+    rv_tap_shift_scan(tdi, 1, 0, 0, 0);
+}
+
+static inline void rvl_tap_escape(uint32_t n)
+{
+	RV_JTAG_TCK_PUT(0);
+	RV_JTAG_TCK_PUT(1);
+	int tms = 0;
+	for(int i = 0; i < n ; i++)
+	{
+		RV_JTAG_TMS_PUT(tms);
+		tms = !tms;
+	}
+	RV_JTAG_TCK_PUT(0);
+}
+
+static inline void rvl_tap_oac(void)
+{
+	rv_tap_tick(0 , 0);
+	rv_tap_tick(0 , 0);
+	rv_tap_tick(1 , 0);
+	rv_tap_tick(1 , 0);
+}
+
+static inline void rvl_tap_ec(void)
+{
+	rv_tap_tick(0 , 0);
+	rv_tap_tick(0 , 0);
+	rv_tap_tick(0 , 0);
+	rv_tap_tick(1 , 0);
+}
+
+static inline void rvl_tap_cp(void)
+{
+	rv_tap_tick(0 , 0);
+	rv_tap_tick(0 , 0);
+	rv_tap_tick(0 , 0);
+	rv_tap_tick(0 , 0);
+}
+
+void rv_tap_oscan1_mode_short(void)
+{
+    oscan1_mode = false;
+    rvl_tap_escape(10);
+    rv_tap_reset(50);
+    rvl_tap_escape(7);
+    rvl_tap_oac();
+    rvl_tap_ec();
+    rvl_tap_cp();
+    oscan1_mode = true;
+    rv_tap_tick(0, 0);// TLR
 }
