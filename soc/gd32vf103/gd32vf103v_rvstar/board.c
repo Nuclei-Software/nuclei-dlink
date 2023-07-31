@@ -43,8 +43,6 @@ void rv_board_init(void)
     while (USBD_CONFIGURED != USB_OTG_dev.dev.cur_status) {
         vTaskDelay(5 / portTICK_PERIOD_MS);
     }
-    RV_LED_R(0);
-    RV_LED_B(1);
 
     usb_serial_init();
 }

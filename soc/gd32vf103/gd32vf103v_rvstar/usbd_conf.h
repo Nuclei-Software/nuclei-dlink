@@ -22,7 +22,7 @@
 #define USBD_CFG_MAX_NUM                   1
 #define USBD_ITF_MAX_NUM                   3
 
-#define CDC0_ACM_CMD_EP                    0x84
+#define CDC0_ACM_CMD_EP                    EP3_IN
 #define CDC0_ACM_DATA_IN_EP                EP1_IN
 #define CDC0_ACM_DATA_OUT_EP               EP1_OUT
 

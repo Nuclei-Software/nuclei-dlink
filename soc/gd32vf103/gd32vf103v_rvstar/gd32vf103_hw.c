@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include "led.h"
 
 #define TIM_MSEC_DELAY                          0x01
 #define TIM_USEC_DELAY                          0x02
@@ -197,7 +197,13 @@ static void hw_time_set(uint8_t unit)
 */
 void  USBFS_IRQHandler (void)
 {
-    usbd_isr (&USB_OTG_dev);
+    /* suspend interrupt */
+    if (USB_OTG_dev.regs.gr->GINTF & GINTF_SP) {
+        RV_LED_R(1);
+        RV_LED_G(0);
+        RV_LED_B(0);
+    }
+    usbd_isr(&USB_OTG_dev);
 }
 
 /*!
@@ -219,6 +225,9 @@ void EXTI0_IRQHandler(void)
 */
 void USBFS_WKUP_IRQHandler(void)
 {
+    RV_LED_R(0);
+    RV_LED_G(0);
+    RV_LED_B(1);
     if (USB_OTG_dev.bp.low_power) {
         SystemInit();
 

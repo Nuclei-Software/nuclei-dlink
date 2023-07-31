@@ -483,7 +483,6 @@ uint8_t cdc_acm_deinit (usb_dev *pudev, uint8_t config_index)
 */
 uint8_t cdc_acm_data_out_handler (usb_dev *pudev, uint8_t ep_id)
 {
-    BaseType_t xHigherPriorityTaskWoken = pdTRUE;
     if ((EP0_OUT & 0x7F) == ep_id)
     {
         cdc_acm_ep0_data_out_handler(pudev);
@@ -505,7 +504,6 @@ uint8_t cdc_acm_data_out_handler (usb_dev *pudev, uint8_t ep_id)
 
 uint8_t cdc_acm_data_in_handler (usb_dev *pudev, uint8_t ep_id)
 {
-    BaseType_t xHigherPriorityTaskWoken = pdTRUE;
     if ((CDC0_ACM_DATA_IN_EP & 0x7F) == ep_id)
     {
         usb_transc *transc = &pudev->dev.transc_in[EP_ID(ep_id)];
