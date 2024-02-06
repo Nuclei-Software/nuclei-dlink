@@ -32,6 +32,8 @@
 #include "semphr.h"   /* RTOS semaphore related API prototypes. */
 #include "task.h"     /* RTOS task related API prototypes. */
 
+#define DLINK_FIRMWARE_VERSION ("v1.0.0")
+
 #ifndef RV_TARGET_CONFIG_DMI_RETRIES
 #define RV_TARGET_CONFIG_DMI_RETRIES                    (6)
 #endif

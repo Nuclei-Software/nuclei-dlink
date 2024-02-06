@@ -621,6 +621,10 @@ void gdb_server_cmd_custom_read(const char* data)
         sprintf(&rsp.data[rsp.len], "%016x;", vlenb);
         rsp.len += 17;
         gdb_server_send_response();
+    } else if (strncmp(p, "version", strlen("version")) == 0) {
+        sprintf(rsp.data, "-:read:version:%s;", DLINK_FIRMWARE_VERSION);
+        rsp.len = 16 + strlen(DLINK_FIRMWARE_VERSION);
+        gdb_server_send_response();
     }
 }
 
