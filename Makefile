@@ -3,7 +3,7 @@ RTOS = FreeRTOS
 
 NUCLEI_SDK_ROOT ?= ../nuclei-sdk
 
-COMMON_FLAGS := -Os
+COMMON_FLAGS := -Os -fshort-wchar
 COMMON_FLAGS += -DUSE_USB_FS
 
 SRCDIRS = . \
