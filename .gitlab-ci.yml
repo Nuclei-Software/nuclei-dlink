@@ -1,6 +1,6 @@
 variables:
   NUCLEI_SDK: git@gito:software/library/nuclei-sdk.git
-  SDK_BRANCH: develop
+  SDK_BRANCH: dlink
   IMAGE: rego.corp.nucleisys.com/software/sdkbuild
   IMAGE_TAG: "2023.12"
 
@@ -49,13 +49,14 @@ prepare_sdk:
     BOARD: "gd32vf103v_rvstar"
   script:
     - export NUCLEI_SDK_ROOT=$(readlink -f nuclei_sdk)
-    - make SOC=${SOC} BOARD=${BOARD} -j dasm
+    - make SOC=${SOC} BOARD=${BOARD} -j dasm bin
   artifacts:
     when: always
     name: "dlink_firmware-${BOARD}-job${CI_JOB_ID}-${CI_COMMIT_SHA::8}"
     paths:
       - dlink.elf
       - dlink.hex
+      - dlink.bin
     expire_in: 15 day
 
 build:gd32v-rvstar:
