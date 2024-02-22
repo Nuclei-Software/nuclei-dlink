@@ -1,7 +1,7 @@
 ## Package Base Information
 name: app-nsdk_dlink
 owner: nuclei
-version:
+version: 0.9.0
 description: Nuclei Debugger Link Firmware
 type: app
 keywords:
@@ -20,7 +20,7 @@ dependencies:
 ## Package Configurations
 configuration:
   app_commonflags:
-    value: -O0
+    value: 
     type: text
     description: Application Compile Flags
 
@@ -28,13 +28,16 @@ configuration:
 setconfig:
   - config: sysclk
     value: hxtal_96mhz
+  - config: usbdriver
+    value: device
 
 ## Source Code Management
 codemanage:
   copyfiles:
-    - path: ["arch", "helper", "server", "soc", "*.c", "*.h"]
+    - path: ["arch/", "flash/", "server/gdb-server/", "soc/port.h", "soc/gd32vf103/gd32vf103v_rvstar/"]
+    - path: ["dlink.c", "FreeRTOSConfig.h", "README_DLink.md"]
   incdirs:
-    - path: ["arch/riscv/include", "helper/include", "server/gdb-server/include", "soc", "soc/gd32vf103/gd32vf103v_rvstar", "./"]
+    - path: ["arch/riscv/include", "flash/include", "server/gdb-server/include", "soc", "soc/gd32vf103/gd32vf103v_rvstar", "./"]
   libdirs:
   ldlibs:
     - libs:
@@ -43,6 +46,7 @@ codemanage:
 buildconfig:
   - type: gcc
     common_flags: # flags need to be combined together across all packages
+      - flags: -Os -fshort-wchar -DUSE_USB_FS 
       - flags: ${app_commonflags}
     ldflags:
     cflags:
