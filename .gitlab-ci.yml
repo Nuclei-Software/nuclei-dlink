@@ -31,7 +31,10 @@ prepare_sdk:
     # important: need to avoid git ssh asking yes/no when clone
     # https://serverfault.com/questions/469052/ssh-failing-from-script-working-on-command-line-git
     - ssh-keyscan gito > ~/.ssh/known_hosts
-    - git clone -b $SDK_BRANCH $NUCLEI_SDK nuclei_sdk
+    - git clone -b $SDK_BRANCH --depth 3 $NUCLEI_SDK nuclei_sdk
+    - pushd nuclei_sdk
+    - echo "Nuclei SDK commit hash $(git describe)"
+    - popd
   artifacts:
     when: always
     name: "nsdk-job${CI_JOB_ID}"
@@ -49,7 +52,11 @@ prepare_sdk:
     BOARD: "gd32vf103v_rvstar"
   script:
     - export NUCLEI_SDK_ROOT=$(readlink -f nuclei_sdk)
-    - make SOC=${SOC} BOARD=${BOARD} -j dasm bin
+    - make SOC=${SOC} BOARD=${BOARD} clean
+    - make SOC=${SOC} BOARD=${BOARD} V=1
+    - make SOC=${SOC} BOARD=${BOARD} dasm
+    - make SOC=${SOC} BOARD=${BOARD} bin
+
   artifacts:
     when: always
     name: "dlink_firmware-${BOARD}-job${CI_JOB_ID}-${CI_COMMIT_SHA::8}"
