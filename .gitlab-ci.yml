@@ -73,7 +73,7 @@ build:gd32v-rvstar:
     SOC: "gd32vf103"
     BOARD: "gd32vf103v_rvstar"
 
-build:gd32v-dlink:
+build:gd32c-dlink:
   <<: *build_job_template_default
   variables:
     SOC: "gd32vf103"
