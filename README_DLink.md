@@ -1,6 +1,9 @@
 # Introduction
 
-Dlink is developed based on RV-Link, and many new functions are added on its basis. At present, Dlink is only applicable to RV-STAR development board as a debugger. This document mainly introduces the new features of dlink, how to run Dlink in RV-STAR, how to connect hardware and how to use software.
+Dlink is developed based on RV-Link, and many new functions are added on its basis.
+At present, Dlink is only applicable to RV-STAR or DLink Debugger development board as a debugger.
+This document mainly introduces the new features of dlink, how to run Dlink in RV-STAR or DLink Debugger,
+how to connect hardware and how to use software.
 
 # Involved Repos
 
@@ -60,8 +63,8 @@ Dlink is developed based on RV-Link, and many new functions are added on its bas
 ## Clone Repository
 
 ```bash
-# clone nuclei-sdk
-git clone https://github.com/Nuclei-Software/nuclei-sdk
+# clone nuclei-sdk develop branch
+git clone -b develop https://github.com/Nuclei-Software/nuclei-sdk
 # clone dlink
 git clone https://github.com/Nuclei-Software/nuclei-dlink
 # clone dlink-gdb-server
@@ -75,15 +78,24 @@ git clone https://github.com/riscv-mcu/openflashloader
 ### dlink firmware program
 
 This step below is used to compile dlink firmware, and upload
-it to rvstar board.
+it to rvstar or dlink debugger board using JTAG.
 
-> Make sure RV-STAR board is connected to your PC.
+> Make sure RV-STAR or DLink board is connected to your PC.
+>
+> DLink debugger board JTAG is not by default exposed for development,
+> you can upload firmware `dlink.hex` built for DLink board
+> via **GD32V DFU tools**.
 
 ```bash
-cd  nuclei_dlink
+cd nuclei_dlink
 # Suppose three git repositories are in the same directory
 # If it is not please modify NUCLEI_SDK_ROOT in Makefile
-make clean all upload
+# if you want to build for gd32vf103v_rvstar board
+# set BOARD=gd32vf103v_rvstar
+make BOARD=gd32vf103v_rvstar clean
+make BOARD=gd32vf103v_rvstar -j dasm
+# upload to rvstar board using jtag
+make BOARD=gd32vf103v_rvstar upload
 ```
 
 ![Dlink Firmware Program](img/dlink_firmware_program.png)
