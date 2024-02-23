@@ -1,9 +1,10 @@
 # DLink
 
-Nuclei System Technology made a riscv debugger called dlink based on rv-link, it provided more features than rv-link.
+Nuclei System Technology made a riscv debugger called dlink based on rv-link,
+it provided more features than rv-link.
 For details, please check [DLink Documentation](README_DLink.md).
 
-> Documentation below is not suitable for dlink project, please follow above documentation.
+> **Documentation below is not suitable for dlink project, please follow above documentation.**
 
 # RV-Link
 [![Travis Build Status](https://travis-ci.com/michahoiting/rv-link.svg?branch=master)](https://travis-ci.com/michahoiting/rv-link)
