@@ -1,6 +1,6 @@
 variables:
   NUCLEI_SDK: git@gito:software/library/nuclei-sdk.git
-  SDK_BRANCH: dlink
+  SDK_BRANCH: develop
   IMAGE: rego.corp.nucleisys.com/software/sdkbuild
   IMAGE_TAG: "2024.02.18"
 
@@ -49,9 +49,10 @@ prepare_sdk:
   needs: ["prepare_sdk"]
   variables:
     SOC: "gd32vf103"
-    BOARD: "gd32vf103v_rvstar"
+    BOARD: "gd32vf103c_dlink"
   script:
     - export NUCLEI_SDK_ROOT=$(readlink -f nuclei_sdk)
+    - echo "Build DLink Firmware for ${BOARD}"
     - make SOC=${SOC} BOARD=${BOARD} clean
     - make SOC=${SOC} BOARD=${BOARD} V=1
     - make SOC=${SOC} BOARD=${BOARD} dasm
@@ -71,4 +72,10 @@ build:gd32v-rvstar:
   variables:
     SOC: "gd32vf103"
     BOARD: "gd32vf103v_rvstar"
+
+build:gd32v-dlink:
+  <<: *build_job_template_default
+  variables:
+    SOC: "gd32vf103"
+    BOARD: "gd32vf103c_dlink"
 
