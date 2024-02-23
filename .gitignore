@@ -29,3 +29,7 @@ output/
 *.pyc
 .vscode
 *.verilog
+tags
+TAGS
+ctags
+CTAGS
