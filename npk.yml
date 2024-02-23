@@ -6,6 +6,7 @@ description: Nuclei Debugger Link Firmware
 type: app
 keywords:
   - freertos
+  - dlink
 category: freertos application
 license:
 homepage:
@@ -14,13 +15,26 @@ homepage:
 dependencies:
   - name: sdk-nuclei_sdk
     version:
+  - name: ssp-nsdk_gd32vf103
+    version:
   - name: osp-nsdk_freertos
     version:
 
 ## Package Configurations
 configuration:
+  dlink_board:
+    default_value: gd32vf103c_dlink
+    type: choice
+    global: true
+    tips: "Select proper dlink develop board you are using"
+    description: DLink Board
+    choices:
+      - name: gd32vf103v_rvstar
+        description: "GD32VF103 RVSTAR Board"
+      - name: gd32vf103c_dlink
+        description: "GD32VF103 DLink Debugger Board"
   app_commonflags:
-    value: 
+    value:
     type: text
     description: Application Compile Flags
 
@@ -34,10 +48,10 @@ setconfig:
 ## Source Code Management
 codemanage:
   copyfiles:
-    - path: ["arch/", "flash/", "server/gdb-server/", "soc/port.h", "soc/gd32vf103/gd32vf103v_rvstar/"]
+    - path: ["arch/", "flash/", "server/gdb-server/", "soc/port.h", "soc/gd32vf103/${dlink_board}/"]
     - path: ["dlink.c", "FreeRTOSConfig.h", "README_DLink.md"]
   incdirs:
-    - path: ["arch/riscv/include", "flash/include", "server/gdb-server/include", "soc", "soc/gd32vf103/gd32vf103v_rvstar", "./"]
+    - path: ["arch/riscv/include", "flash/include", "server/gdb-server/include", "soc", "soc/gd32vf103/${dlink_board}", "./"]
   libdirs:
   ldlibs:
     - libs:
@@ -46,7 +60,7 @@ codemanage:
 buildconfig:
   - type: gcc
     common_flags: # flags need to be combined together across all packages
-      - flags: -Os -fshort-wchar -DUSE_USB_FS 
+      - flags: -Os -fshort-wchar -DUSE_USB_FS
       - flags: ${app_commonflags}
     ldflags:
     cflags:
