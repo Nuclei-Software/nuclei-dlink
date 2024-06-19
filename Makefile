@@ -11,6 +11,10 @@ USB_DRIVER := device
 COMMON_FLAGS := -Os -fshort-wchar
 COMMON_FLAGS += -DUSE_USB_FS
 
+ifneq ($(CI_JOB_ID),)
+COMMON_FLAGS += -DCI_JOB_ID=$(CI_JOB_ID)
+endif
+
 SRCDIRS = . \
         arch/riscv/source \
         flash/source \

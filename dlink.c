@@ -37,6 +37,10 @@ int main(void)
 
     printf("DLink Firmware Version %s\n", DLINK_FIRMWARE_VERSION);
 
+#if defined(CI_JOB_ID) && CI_JOB_ID > 0
+    printf("DLink Build Via CI, JOB ID is %u\n", CI_JOB_ID);
+#endif
+
     xReturned = xTaskCreate(gdb_server_vTask,       /* Function that implements the task. */
                             "gdb_server",           /* Text name for the task. */
                             512,                    /* Stack size in words, not bytes. */

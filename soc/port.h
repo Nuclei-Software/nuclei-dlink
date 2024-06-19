@@ -32,7 +32,12 @@
 #include "semphr.h"   /* RTOS semaphore related API prototypes. */
 #include "task.h"     /* RTOS task related API prototypes. */
 
-#define DLINK_FIRMWARE_VERSION ("v0.9.0")
+#define DLINK_FIRMWARE_VERSION  ("v0.9.0")
+
+#ifndef CI_JOB_ID
+// If CI_JOB_ID = 0, means it is not built by ci
+#define CI_JOB_ID               0
+#endif
 
 #ifndef RV_TARGET_CONFIG_DMI_RETRIES
 #define RV_TARGET_CONFIG_DMI_RETRIES                    (6)
