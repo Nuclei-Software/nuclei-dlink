@@ -35,6 +35,8 @@ int main(void)
 {
     BaseType_t xReturned;
 
+    printf("DLink Firmware Version %s\n", DLINK_FIRMWARE_VERSION);
+
     xReturned = xTaskCreate(gdb_server_vTask,       /* Function that implements the task. */
                             "gdb_server",           /* Text name for the task. */
                             512,                    /* Stack size in words, not bytes. */
