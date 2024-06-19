@@ -2,7 +2,7 @@ variables:
   NUCLEI_SDK: git@gito:software/library/nuclei-sdk.git
   SDK_BRANCH: develop
   IMAGE: rego.corp.nucleisys.com/software/sdkbuild
-  IMAGE_TAG: "2024.02.18"
+  IMAGE_TAG: "2024.05.27"
 
 default:
   tags:
