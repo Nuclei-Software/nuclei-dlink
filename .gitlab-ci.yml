@@ -34,7 +34,6 @@ prepare_sdk:
     - git clone -b $SDK_BRANCH --depth 3 $NUCLEI_SDK nuclei_sdk
     - pushd nuclei_sdk
     - echo "Nuclei SDK commit hash $(git describe --always --tags)"
-    - export NUCLEI_SDK_COMMIT_HASH=$(git describe --always --tags)
     - popd
   artifacts:
     when: always
@@ -53,6 +52,9 @@ prepare_sdk:
     BOARD: "gd32vf103c_dlink"
   script:
     - export NUCLEI_SDK_ROOT=$(readlink -f nuclei_sdk)
+    - pushd $NUCLEI_SDK_ROOT
+    - export NUCLEI_SDK_COMMIT_HASH=$(git describe --always --tags)
+    - popd
     - echo "Build DLink Firmware for ${BOARD}"
     - make SOC=${SOC} BOARD=${BOARD} clean
     - make SOC=${SOC} BOARD=${BOARD} V=1
@@ -60,7 +62,7 @@ prepare_sdk:
     - make SOC=${SOC} BOARD=${BOARD} bin
     - export DLINK_BUILD_INFO=dlink.build
     - echo "Store build information in ${DLINK_BUILD_INFO}"
-    - echo "Build timestamp $(date --utc +%s)" > ${DLINK_BUILD_INFO}
+    - echo "Build timestamp $(date --utc +%s), pipeline id ${CI_PIPELINE_ID}, job id ${CI_JOB_ID}" > ${DLINK_BUILD_INFO}
     - echo "Build via make SOC=${SOC} BOARD=${BOARD} clean dasm bin" >> ${DLINK_BUILD_INFO}
     - echo "Nuclei SDK Commit ${NUCLEI_SDK_COMMIT_HASH}" >> ${DLINK_BUILD_INFO}
     - echo "Nuclei DLink Commit ${CI_COMMIT_SHA::8}" >> ${DLINK_BUILD_INFO}
