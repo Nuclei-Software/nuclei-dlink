@@ -71,7 +71,12 @@ prepare_sdk:
     when: always
     name: "dlink_firmware-${BOARD}-job${CI_JOB_ID}-${CI_COMMIT_SHA::8}"
     paths:
-      - dlink.*
+      - dlink.hex
+      - dlink.bin
+      - dlink.map
+      - dlink.elf
+      - dlink.build
+      - dlink.dump
     expire_in: 15 day
 
 build:gd32v-rvstar:
