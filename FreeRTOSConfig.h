@@ -84,7 +84,7 @@ your application. */
 #define configCPU_CLOCK_HZ                      SystemCoreClock
 #define configRTC_CLOCK_HZ                      32768
 #define configTICK_RATE_HZ                      100
-#define configMAX_PRIORITIES                    4
+#define configMAX_PRIORITIES                    5
 #define configMINIMAL_STACK_SIZE                256
 #define configMAX_TASK_NAME_LEN                 16
 #define configUSE_16_BIT_TICKS                  0
