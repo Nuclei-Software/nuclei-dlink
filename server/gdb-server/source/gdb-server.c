@@ -16,7 +16,6 @@
 
 #include "gdb-packet.h"
 #include "riscv-target.h"
-#include "riscv_encoding.h"
 #include "encoding.h"
 #include "flash.h"
 #include "led.h"
@@ -425,7 +424,7 @@ void gdb_server_cmd_p(void)
     sscanf(&cmd.data[1], "%x", &gdb_server_i.reg_tmp_num);
 
     rv_target_read_register(gdb_server_i.reg_tmp, gdb_server_i.reg_tmp_num);
-    if ((gdb_server_i.reg_tmp_num >= CSR_V0) && (gdb_server_i.reg_tmp_num <= CSR_V31)) {
+    if ((gdb_server_i.reg_tmp_num >= RV_REG_V0) && (gdb_server_i.reg_tmp_num <= RV_REG_V31)) {
         uint32_t data_bits = rv_target_vlenb() * 8;
         uint32_t xlen = rv_target_mxl() * 32;
         uint32_t debug_vl = (data_bits + xlen - 1) / xlen;
@@ -463,7 +462,7 @@ void gdb_server_cmd_P(void)
     sscanf(&cmd.data[1], "%x", &gdb_server_i.reg_tmp_num);
     p = strchr(&cmd.data[1], '=');
     p++;
-    if ((gdb_server_i.reg_tmp_num >= CSR_V0) && (gdb_server_i.reg_tmp_num <= CSR_V31)) {
+    if ((gdb_server_i.reg_tmp_num >= RV_REG_V0) && (gdb_server_i.reg_tmp_num <= RV_REG_V31)) {
         uint32_t data_bits = rv_target_vlenb() * 8;
         uint32_t xlen = rv_target_mxl() * 32;
         uint32_t debug_vl = (data_bits + xlen - 1) / xlen;
@@ -644,22 +643,22 @@ void gdb_server_cmd_custom_algorithm(const char* data)
     rv_target_read_core_registers(gdb_server_i.regs);
     gdb_server_i.restore_reg_flag = true;
     /* Run algorithm */
-    gdb_server_i.reg_tmp_num = CSR_PC;
+    gdb_server_i.reg_tmp_num = RV_REG_PC;
     gdb_server_i.reg_tmp[0] = loader_addr;
     rv_target_write_register(gdb_server_i.reg_tmp, gdb_server_i.reg_tmp_num);
-    gdb_server_i.reg_tmp_num = CSR_A0;
+    gdb_server_i.reg_tmp_num = RV_REG_A0;
     gdb_server_i.reg_tmp[0] = cs;
     rv_target_write_register(gdb_server_i.reg_tmp, gdb_server_i.reg_tmp_num);
-    gdb_server_i.reg_tmp_num = CSR_A1;
+    gdb_server_i.reg_tmp_num = RV_REG_A1;
     gdb_server_i.reg_tmp[0] = spi_base;
     rv_target_write_register(gdb_server_i.reg_tmp, gdb_server_i.reg_tmp_num);
-    gdb_server_i.reg_tmp_num = CSR_A2;
+    gdb_server_i.reg_tmp_num = RV_REG_A2;
     gdb_server_i.reg_tmp[0] = params1;
     rv_target_write_register(gdb_server_i.reg_tmp, gdb_server_i.reg_tmp_num);
-    gdb_server_i.reg_tmp_num = CSR_A3;
+    gdb_server_i.reg_tmp_num = RV_REG_A3;
     gdb_server_i.reg_tmp[0] = params2;
     rv_target_write_register(gdb_server_i.reg_tmp, gdb_server_i.reg_tmp_num);
-    gdb_server_i.reg_tmp_num = CSR_A4;
+    gdb_server_i.reg_tmp_num = RV_REG_A4;
     gdb_server_i.reg_tmp[0] = params3;
     rv_target_write_register(gdb_server_i.reg_tmp, gdb_server_i.reg_tmp_num);
 
