@@ -1,7 +1,7 @@
 ## Package Base Information
 name: app-nsdk_dlink
 owner: nuclei
-version: 0.9.0
+version: 0.9.1
 description: Nuclei Debugger Link Firmware
 type: app
 keywords:
